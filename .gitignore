@@ -1,0 +1,39 @@
+# --- Never committed (repo_rules.md S3) ---
+# Recompiled output. The lifter ships; the generated tree does not. It lands
+# in src/recomp/ untracked, produced from your own dump.
+/src/recomp/
+/build-lifted/
+
+# Anything reconstructed from the ROM: entry-point lists, symbol maps, the
+# RAM snapshot the boot interpreter takes.
+/work/
+entries*.txt
+*.snapshot
+
+# ROM dumps and images built from them.
+roms/
+*.zip
+*.bin
+*.rom
+*.nv
+epr-*
+mpr-*
+
+# --- Build ---
+build/
+build-*/
+out/
+*.o
+*.obj
+*.exe
+*.lib
+*.pdb
+CMakeCache.txt
+CMakeFiles/
+
+# --- Local tooling ---
+CLAUDE.md
+.claude/
+repo_rules.md
+__pycache__/
+*.pyc

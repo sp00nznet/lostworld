@@ -1,0 +1,3 @@
+[submodule "ext/model3recomp"]
+	path = ext/model3recomp
+	url = https://github.com/sp00nznet/model3recomp.git
