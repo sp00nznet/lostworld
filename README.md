@@ -25,12 +25,39 @@ the same way on top of `model2recomp`.
 | Runs SCSI DMA to the Real3D | yes |
 | Writes tilemap VRAM | yes |
 | Renders those tiles to a framebuffer | yes |
+| Agrees with the interpreter, access for access | yes |
 | **Attract mode** | **not yet** |
 
 The 2D tilemap pipeline runs end to end — ROM to lifted C to native execution
-to VRAM to pixels — but what the game has drawn so far is its cleared screen.
-Attract mode on this title is mostly 3D, and the Real3D renderer is not
-written, so that is the gate.
+to VRAM to pixels.
+
+The lift itself is in good shape, and the evidence is differential rather than
+anecdotal: run the same boot through `model3recomp`'s interpreter and through
+the recompiled binary, and the two device-access traces are identical for
+30,000 accesses, with byte-identical buffers at the end — 24,525 words of VRAM
+and 8,306 words of culling RAM.
+
+### Where it stops
+
+The game settles into its **operator service menu**, not attract mode.
+
+Per-frame work on this title is dispatched through ten callback slots at RAM
+`0x001EED7C..0x001EEDA0`. Slot `0x001EED80` should receive the frame task
+`0x1578`; here it holds the null stub `0x00117864` for every field observed.
+The install site is `0x000019A8`, guarded by `[0x001A3474] == 0` at
+`0x00001934`. Execution provably reaches `0x000018FC` and the guard byte reads
+0, so the stall sits in the three calls between — `0x0002E9BC`, the epilogue of
+`0x000018BC`, and `0x00001984`.
+
+Next step: `python ext/model3recomp/tools/ppc_interp.py ... --break-at` on each
+of those, to name the last one reached.
+
+Not the cause, though each was suspected and tested: the sound board, PCI, the
+SCSI engine, the Real3D ready bit, either input polarity, or the two interrupt
+lines the guest enables but the runtime never asserts.
+
+The Real3D renderer is also unwritten, so even once attract mode starts, most
+of it will be missing. That is board-level work and lives in `model3recomp`.
 
 No screenshots of the game yet. There will be some the moment there is
 something to show, and not before.
