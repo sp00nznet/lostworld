@@ -26,10 +26,22 @@ this project adheres to [Semantic Versioning](https://semver.org/).
   performed SCRIPTS memory moves that `src/scsi.c` already rejected as
   out of range, one of which zeroed the boot console's text buffer pointer and
   so turned the warning screen's teardown into a `memset` over the init chain.
+- The sound board never reported itself ready. The command loop at
+  `0x00118854` waits on bit `0x01000000` of `0xF0080004` and runs inside the
+  VBlank handler, so a board that is never ready did not merely lose sound --
+  it wedged the machine, because no further field could fall due while a
+  dispatch was in progress.
+
+### Known issues
+- Around field 850 the recompiled binary wedges in a loop under `0x0001C0E4`,
+  the attract path's sound set-up, while the interpreter walks the same
+  function in about 3,300 instructions. Nothing is reported unimplemented or
+  unlifted on that path, so it is a semantic difference in lifted code.
 
 ### Status
 - Boots, completes I/O init, takes VBlank interrupts, runs SCSI DMA, writes
   tilemap VRAM, renders it, clears the Sega region warning screen, reaches the
-  main entry at RAM `0x30`, and installs and runs the frame task `0x1578`.
+  main entry at RAM `0x30`, and installs and runs the frame task `0x1578` every
+  field -- 497 times through field 874 in the interpreter, 496 natively.
   Attract mode is still not drawn: it is mostly 3D and the Real3D renderer is
   not written.

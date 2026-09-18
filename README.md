@@ -31,6 +31,7 @@ The Real3D renderer is not written, so there is still nothing 3D to see.**
 | Clears the Sega region warning screen | yes |
 | Reaches the game's main entry at RAM `0x30` | yes |
 | **Installs and runs the frame task `0x1578`** | **yes** |
+| Runs that task every field, in the interpreter and natively | yes |
 | **Attract mode, drawn** | **not yet -- no Real3D renderer** |
 
 The 2D tilemap pipeline runs end to end — ROM to lifted C to native execution
@@ -105,8 +106,20 @@ how each of these was found.
 
 ### Where it stops now
 
-The Real3D renderer is unwritten, so the frame task builds a scene every field
-that nothing draws. That is board-level work and lives in `model3recomp`.
+The frame task runs every field: 497 times through field 874 under the
+interpreter, 496 under the recompiled binary. Nothing new appears, because the
+Real3D renderer is unwritten -- the framebuffer holds the same 26% non-black
+tilemap at 100, 400 and 800 fields. That renderer is board-level work and
+lives in `model3recomp`.
+
+There is one open divergence between the two. Around field 850 the recompiled
+binary wedges in a loop somewhere under `0x0001C0E4`, the attract path's sound
+set-up, and stops touching devices at all -- which also freezes the field
+clock, because `irq_tick()` is only reached from a device access or a
+dispatched call. The interpreter walks the same function in about 3,300
+instructions and carries on. No unimplemented instruction and no unlifted
+function is reported on that path, so this is a semantic difference in lifted
+code rather than a coverage hole, and it is the next thing to find.
 
 No screenshots of the game yet. There will be some the moment there is
 something to show, and not before.
