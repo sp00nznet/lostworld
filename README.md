@@ -142,7 +142,28 @@ end; the interpreter and the recompiled binary sat in it forever and agreed
 exactly, which is what ruled out a lifter bug. With SPR 22 counting down and
 its `0 -> -1` crossing taking the exception, the counter advances.
 
-It still does not reach attract mode. Whatever is next is past that wait.
+It still does not reach attract mode, and the reason is now narrow enough to
+state exactly. Instrument every guest function entry rather than only the
+indirect dispatches and the frame is legible:
+
+| | |
+|---|---|
+| Frame task `0x1578` | runs every field |
+| Real3D triggered | ~476 times per 2,500 fields, by DMA of a 4-byte word |
+| Culling RAM written | 23 small transfers, all in the first second |
+| Polygon RAM written | never |
+| Upload FIFO at `0x94000000` | 464 transfers — a gamma ramp, re-sent every frame |
+| Tilemap | deliberately blank after the boot report |
+
+So the guest is not stalled in the sense of being stuck in a loop: it runs a
+frame, sets its colour ramp, triggers the renderer, and does it again. It just
+never sends any geometry. The blank screen after the boot report is the game's
+own doing, not a renderer that cannot draw.
+
+One real fault was found along the way and fixed: the FIFO above is a single
+port rather than an address window, and the DMA range check had been rejecting
+every transfer to it, because a thousand bytes to one address looks like a
+thousand bytes off the end of it.
 
 **There is no 3D scene to draw, which is why the Real3D renderer is not the
 next thing to write.** Dump the scene memory and the picture is unambiguous:
