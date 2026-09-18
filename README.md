@@ -196,6 +196,28 @@ does work, and draws the operator test menu — so the dispatch mechanism and
 the tilemap are both fine, and that slot holds the service menu rather than
 anything to do with attract mode.
 
+### The ROM images were built wrong
+
+`mame -listxml lostwsga` gives the authoritative layout, region by region and
+offset by offset, and `model3recomp`'s loader disagreed with it in a way that
+size checks cannot catch. The obvious reading is the wrong one:
+
+| | was | is |
+|---|---|---|
+| banked CROM | sixteen **2 MB** parts, 32 MB | sixteen **4 MB** parts, **64 MB** |
+| VROM | sixteen **4 MB** parts, 16-lane | sixteen **2 MB** parts, **8-lane** |
+| group order | chip-number order | reversed (CROM), pairs swapped (VROM) |
+
+Both images came out the right size either way, so nothing complained, and
+the game read plausible nonsense rather than nothing — which is worse, because
+it gets further before going wrong. The corrected banked CROM is verified
+chip by chip against MAME's layout: each part lands exactly where that layout
+puts it, byte-swapped, eight bytes apart.
+
+It also settles something the guest had been saying all along. 64 MB in an
+8 MB window is **eight** banks, not four — which is why it writes `F0`
+through `F7`, values no four-bank reading could account for.
+
 ### The likeliest cause: the game is reading its data as zeros
 
 The banked CROM window is 8 MB of a 32 MB image, so at most two bits of the
