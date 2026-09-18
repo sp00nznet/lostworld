@@ -240,6 +240,38 @@ It also closes the bank-register question: driving that register through all
 reading of those bits was ever going to be the answer — which is why none of
 the two dozen tried worked.
 
+### What the game should be showing, and where it stops
+
+`mame -listxml` was useful; running MAME is better. It plays this game on this
+machine, so the question "what should be on screen at this point" has an
+answer rather than a guess. Two things fall straight out of that.
+
+The first is a check on the tilemap work above: MAME's frame 300 has **3,757**
+non-black pixels and its frames 600 and 900 have **838** — the same counts
+this port produces, exactly. The 2D pipeline agrees with a reference
+implementation pixel for pixel on both screens it can draw.
+
+The second is where it stops. MAME's attract mode begins around frame 1,200
+with a credits line at the bottom of the screen, and by frame 3,300 it is
+showing a ranking table — *drawn with the tilemap*, not the Real3D. So attract
+mode is partly reachable without a renderer at all.
+
+Comparing the two machines at the same point:
+
+| | |
+|---|---|
+| work RAM, in the ranges dumped | **904 of 969** non-zero words identical |
+| flags word, game mode, scissor, callback slots | identical |
+| the tilemap copy at `0x0002CC04` | MAME runs it repeatedly, this runs it **once** |
+| its gate at RAM `0x001C1B70` | set by the game's text-drawing calls, which MAME makes and this does not |
+| the credits line | MAME writes rows 43-44; this writes rows 0-1 |
+
+So the two are in very nearly the same state, and the gap is that the attract
+sequence does not drive the text API. That is a narrower thing to chase than
+anything before it, and the method for chasing it now exists: MAME's memory
+taps name the code that writes a given address, and its RAM can be diffed
+against this port's word for word.
+
 ### Earlier suspicion: the banked window
 
 The banked CROM window is 8 MB of a 32 MB image, so at most two bits of the
