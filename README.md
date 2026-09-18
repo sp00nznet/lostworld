@@ -267,7 +267,32 @@ Comparing the two machines at the same point:
 | the credits line | MAME writes rows 43-44; this writes rows 0-1 |
 
 So the two are in very nearly the same state, and the gap is that the attract
-sequence does not drive the text API. That is a narrower thing to chase than
+sequence does not drive the text API.
+
+Following that upward: the text calls come from the game's state handlers, in
+a table at RAM `0x0011E6A4` indexed by `[0x001A3BB4] & 7`. That state is `0`
+in both machines, so both should be running the handler at `0x00001EB8` — and
+the dispatcher that would call it is the game's own main loop:
+
+```
+00001A14  bl 0x00001EF4     ; dispatch one state
+00001A18  b  0x00001A0C     ; forever
+```
+
+**That loop goes round once here.** Its last call is `0x00118340`, which waits
+at `0x0011837C` for RAM `0x001C10D0` to change, and only the decrementer
+handler writes that word. The handler does run — 43 times in a 3,000-field
+run — and the word does change, but the wait is 568 million iterations of that
+one branch, by far the hottest in the program.
+
+It is not the decrementer's rate. Sweeping that over four orders of magnitude
+leaves the iteration count identical to the digit: 568,397,571 against
+568,397,595. Something else gates the wait.
+
+Meanwhile the frame task keeps running, because it arrives by interrupt rather
+than through this loop — which is why fields advance and the screen updates at
+all while the main loop is stuck. That also defeats the field-advance loop
+guard, so the backward-branch histogram is what found this. That is a narrower thing to chase than
 anything before it, and the method for chasing it now exists: MAME's memory
 taps name the code that writes a given address, and its RAM can be diffed
 against this port's word for word.
