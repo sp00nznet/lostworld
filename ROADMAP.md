@@ -2,15 +2,21 @@
 
 The milestone is one specific frame: **The Lost World's attract mode**.
 
-## Next: the Real3D
+## Next: get the game to submit a scene
 
-Everything else in the picture already works. The game now reaches its main
-entry, installs the frame task `0x1578`, and builds a scene every frame — the
-culling and polygon RAM fill up, and the SCSI DMA feeds the texture port — and
-nothing draws it.
+Not the Real3D, which is the surprise. The game reaches its main entry, runs
+its frame task every field, and draws its own text — and then submits no
+geometry whatsoever. Culling RAM holds a viewport and an LOD table and nothing
+else; polygon RAM is never written at all. Its own state machine is stalled on
+a counter at RAM `0x001A38C0` that never advances.
 
-This is board-level work and belongs in
-[model3recomp](https://github.com/sp00nznet/model3recomp), not here:
+A rasteriser written before that is fixed has nothing to walk. Find what is
+meant to move that counter first.
+
+## Then: the Real3D
+
+Once there is a scene, this is board-level work and belongs in
+[model3recomp](https://github.com/sp00nznet/model3recomp), not here.
 
 - Walk the culling-RAM node tree, accumulating transforms.
 - Parse the display list out of polygon RAM.

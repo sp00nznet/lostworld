@@ -57,6 +57,8 @@ static void on_field(void)
     if (!g_stop_after || model3recomp_frame_count() < g_stop_after)
         return;
     model3recomp_screenshot("shot.ppm");
+    if (getenv("M3_DUMP_SCENE"))
+        model3recomp_dump_scene(getenv("M3_DUMP_SCENE"));
     fprintf(stderr, "captured shot.ppm after %llu fields\n",
             (unsigned long long)model3recomp_frame_count());
     exit(0);

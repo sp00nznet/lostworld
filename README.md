@@ -32,10 +32,33 @@ The Real3D renderer is not written, so there is still nothing 3D to see.**
 | Reaches the game's main entry at RAM `0x30` | yes |
 | **Installs and runs the frame task `0x1578`** | **yes** |
 | Runs that task every field, in the interpreter and natively | yes |
-| **Attract mode, drawn** | **not yet -- no Real3D renderer** |
+| **Draws its own text, legibly** | **yes** |
+| Submits 3D geometry | no -- see below |
+| **Attract mode, drawn** | **not yet** |
 
 The 2D tilemap pipeline runs end to end — ROM to lifted C to native execution
-to VRAM to pixels.
+to VRAM to readable pixels. The game draws its own region warning screen and
+its boot report, and both can be checked word for word against the strings in
+the ROM:
+
+```
+             W A R N I N G
+
+ THIS GAME IS TO BE USED ONLY IN JAPAN.
+    EXPORT,SALES,DISTRIBUTION AND/OR
+    OPERATION OUTSIDE THIS AREA MAY
+CONSTITUTE A VIOLATION OF INTERNATIONAL
+  LAWS ON COPYRIGHTS AND/OR INDUSTRIAL
+    PROPERTY RIGHTS AND SUBJECT THE
+ VIOLATING PARTY TO LEGAL PROCEEDINGS.
+         SEGA ENTERPRISES,LTD.
+```
+
+That is worth more than it looks. A tilemap decode has several orderings in
+it and a wrong one still draws *something*; text whose wording is known in
+advance is the only cheap way to tell a right answer from a plausible one.
+The previous decode read the scroll table as a name table and drew one tile
+over the entire screen.
 
 The lift itself is in good shape, and the evidence is differential rather than
 anecdotal: run the same boot through `model3recomp`'s interpreter and through
@@ -106,23 +129,33 @@ how each of these was found.
 
 ### Where it stops now
 
-The frame task runs every field: 497 times through field 874 under the
-interpreter, 496 under the recompiled binary. Nothing new appears, because the
-Real3D renderer is unwritten -- the framebuffer holds the same 26% non-black
-tilemap at 100, 400 and 800 fields. That renderer is board-level work and
-lives in `model3recomp`.
+The frame task runs every field, the interrupt path is healthy, and the game
+draws its text. Then it stops making progress: its own state machine is
+frozen. The frame task's first act is to compare a counter at RAM
+`0x001A38C0` against a target at `0x001A37AC`, and it leaves early because the
+counter never moves — it reads 124 against a target of 509 at fields 1,200,
+2,500, 6,000 and 15,000 alike.
 
-There is one open divergence between the two. Around field 850 the recompiled
-binary wedges in a loop somewhere under `0x0001C0E4`, the attract path's sound
-set-up, and stops touching devices at all -- which also freezes the field
-clock, because `irq_tick()` is only reached from a device access or a
-dispatched call. The interpreter walks the same function in about 3,300
-instructions and carries on. No unimplemented instruction and no unlifted
-function is reported on that path, so this is a semantic difference in lifted
-code rather than a coverage hole, and it is the next thing to find.
+**There is no 3D scene to draw, which is why the Real3D renderer is not the
+next thing to write.** Dump the scene memory and the picture is unambiguous:
 
-No screenshots of the game yet. There will be some the moment there is
-something to show, and not before.
+| | |
+|---|---|
+| Culling RAM, high | a viewport node and an LOD table — real, and frozen |
+| Culling RAM, low | never written |
+| Polygon RAM | never written |
+| The node area | 98.7% one repeated constant, `0x00800800` |
+
+So the guest has set the Real3D up — the viewport node at offset 0 holds
+believable frustum plane normals as little-endian floats, `0.2588` and
+`0.9659` among them — and then submits no models at all. A rasteriser written
+today would walk an empty node list and draw nothing. The blocker is the
+frozen counter above, not the renderer.
+
+`M3_LOOP_GUARD` is how the last stall was found. A recompiled game has no
+program counter to inspect, so a build with it defined reports the guest
+address a wedged game is spinning at; that is what named `0x0011837C`, a wait
+on a RAM word that only an interrupt handler writes.
 
 ## What you need
 

@@ -18,6 +18,15 @@ this project adheres to [Semantic Versioning](https://semver.org/).
 - `docs/technical/bring-up.md` — what this title needed, and why.
 
 ### Fixed
+- The game draws its own text. The tilemap decode in `model3recomp` was wrong
+  in three places at once and still produced a picture; it now renders the
+  region warning screen and the boot report legibly, and they match the
+  strings in the ROM word for word.
+- The recompiled binary no longer wedges around field 850. It was waiting at
+  `0x0011837C` on a RAM word that only an interrupt handler writes, in a loop
+  that touches no device and dispatches through no pointer -- so the runtime's
+  field clock stopped and the interrupt could never arrive. Fixed in
+  `model3recomp` by giving the runtime a turn on backward branches.
 - The game reaches its main entry. Three board-level faults were in the way,
   each hiding the next: PCI configuration space did not exist, so the game
   never found the Real3D or the 53C810 and spun on the readiness flag at RAM
@@ -33,10 +42,12 @@ this project adheres to [Semantic Versioning](https://semver.org/).
   dispatch was in progress.
 
 ### Known issues
-- Around field 850 the recompiled binary wedges in a loop under `0x0001C0E4`,
-  the attract path's sound set-up, while the interpreter walks the same
-  function in about 3,300 instructions. Nothing is reported unimplemented or
-  unlifted on that path, so it is a semantic difference in lifted code.
+- The game submits no 3D geometry. Culling RAM holds a viewport node and an
+  LOD table; the node area is 98.7% one repeated constant and polygon RAM is
+  never written. Its own state machine is stalled: the frame task leaves early
+  every field because the counter at RAM `0x001A38C0` never advances past 124
+  toward the 509 at `0x001A37AC`. Until that moves there is nothing for a
+  Real3D renderer to draw.
 
 ### Status
 - Boots, completes I/O init, takes VBlank interrupts, runs SCSI DMA, writes
