@@ -279,15 +279,37 @@ the dispatcher that would call it is the game's own main loop:
 00001A18  b  0x00001A0C     ; forever
 ```
 
-**That loop goes round once here.** Its last call is `0x00118340`, which waits
+**That loop used to go round once here, and now it turns.** Its last call is `0x00118340`, which waits
 at `0x0011837C` for RAM `0x001C10D0` to change, and only the decrementer
 handler writes that word. The handler does run — 43 times in a 3,000-field
 run — and the word does change, but the wait is 568 million iterations of that
 one branch, by far the hottest in the program.
 
-It is not the decrementer's rate. Sweeping that over four orders of magnitude
-leaves the iteration count identical to the digit: 568,397,571 against
-568,397,595. Something else gates the wait.
+It was not the decrementer's rate — sweeping that over four orders of
+magnitude left the iteration count identical to the digit. It was the **time
+base**.
+
+`mftb` advanced one tick per *read*, which is not a clock: its value depended
+on how often the guest looked at it rather than on how much time had passed.
+This game times an interval with it and divides to get its decrementer period,
+and computed **−26** where the hardware gives **26,926**. So the decrementer
+never fired again, the wait never ended, and the state handler ran once
+instead of once a field. The other end of the same measurement was the Real3D
+frame flag, which flipped per read rather than per frame — a shortcut taken
+deliberately, marked "upgrade path: flip it when the Real3D actually retires a
+frame", and now come due.
+
+With both fixed the machine comes alive:
+
+| | before | after |
+|---|---|---|
+| timing routine `0x00118340` | 1 | **2,059** |
+| tilemap copy `0x0002CC04` | 1 | **2,059** |
+| state handler `0x0001D68C` | 1 | **2,060** |
+
+The game now runs its own state machine once a field, in state 0, the same
+state MAME is in. What it still does not do is drive its text calls, so the
+credits line MAME draws is not drawn here yet.
 
 Meanwhile the frame task keeps running, because it arrives by interrupt rather
 than through this loop — which is why fields advance and the screen updates at
