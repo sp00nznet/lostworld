@@ -218,7 +218,29 @@ It also settles something the guest had been saying all along. 64 MB in an
 8 MB window is **eight** banks, not four — which is why it writes `F0`
 through `F7`, values no four-bank reading could account for.
 
-### The likeliest cause: the game is reading its data as zeros
+### Six megabytes of the data ROM were never mapped
+
+The one measured with MAME rather than reasoned about. Run the game under
+MAME, read its memory back, and the CROM map is plain:
+
+| CPU address | what is there |
+|---|---|
+| `0xFF000000`–`0xFF7FFFFF` | zeros — on real hardware too |
+| `0xFF800000`–`0xFFDFFFFF` | the data image, offset 0 onward, **unbanked** |
+| `0xFFE00000`–`0xFFFFFFFF` | the 2 MB program |
+
+`model3recomp` had nothing at all in the middle span, so a game asking for its
+own tables got zeros. This one reads `0xFFA18DEC`, where the image holds an
+`"M3"`-tagged record, and found none of it. Now mapped, and checked address by
+address against MAME: `0xFF800000` is offset 0, `0xFFC00000` is `0x400000`,
+`0xFFDFFFF0` is `0x5FFFF0`.
+
+It also closes the bank-register question: driving that register through all
+256 values under MAME moves none of this. The span is not banked, so no
+reading of those bits was ever going to be the answer — which is why none of
+the two dozen tried worked.
+
+### Earlier suspicion: the banked window
 
 The banked CROM window is 8 MB of a 32 MB image, so at most two bits of the
 register at `0xF0100008` can be the bank. `model3recomp` shifted the whole
