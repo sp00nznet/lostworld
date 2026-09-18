@@ -191,8 +191,36 @@ Slot `0x001EED98` holds a real task, `0x00032B2C`. Its bit is never set —
 
 Forcing the bit is not the fix and was tried: the task still does not start
 and the scheduler comes apart, which says the task has to be *started*
-properly rather than merely marked. But it is the narrowest description of
-the gap so far, and it is upstream of the renderer rather than in it.
+properly rather than merely marked. Forcing it once rather than every field
+does work, and draws the operator test menu — so the dispatch mechanism and
+the tilemap are both fine, and that slot holds the service menu rather than
+anything to do with attract mode.
+
+### The likeliest cause: the game is reading its data as zeros
+
+The banked CROM window is 8 MB of a 32 MB image, so at most two bits of the
+register at `0xF0100008` can be the bank. `model3recomp` shifted the whole
+byte, and this game writes `0xF7` for most of its run — which lands at offset
+`0xF700000`, far outside the image. Every read through the window then returns
+zero: **299,984 of them in a 2,500-field run, about 1.2 MB of the game's own
+data.** `tools/rom_loader.py` warns of precisely this in a comment, and the
+symptom is what it predicts.
+
+That is very likely why nothing is drawn: the object and model tables the
+attract sequence would walk are read as zeros, so there is nothing to submit.
+
+One fix that this needed is in and correct: the register read back a value
+derived from the bank *offset*, which agrees with what was written only while
+the mapping is a plain shift — so every attempt to correct the mapping wedged
+the boot in the spin that waits for the readback, and looked like a different
+bug. Register and offset are separate now.
+
+The mapping itself is still unknown and is deliberately left alone rather than
+guessed at. `M3_TRACE_BANK` reports the access pattern — this game reads
+window offsets `0x000000`, `0x010000`, `0x120000`, `0x150000` and `0x400000`
+under registers `F1`, `F2`, `F3` and `F5` — and `M3_CROM_BANK` selects between
+candidate readings. Every candidate tried so far leaves the game worse off
+than zeros do, which says it is finding wrong data rather than none.
 
 **There is no 3D scene to draw, which is why the Real3D renderer is not the
 next thing to write.** Dump the scene memory and the picture is unambiguous:
