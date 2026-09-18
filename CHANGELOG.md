@@ -45,9 +45,10 @@ this project adheres to [Semantic Versioning](https://semver.org/).
 - The game submits no 3D geometry. Culling RAM holds a viewport node and an
   LOD table; the node area is 98.7% one repeated constant and polygon RAM is
   never written. Its own state machine is stalled: the frame task leaves early
-  every field because the counter at RAM `0x001A38C0` never advances past 124
-  toward the 509 at `0x001A37AC`. Until that moves there is nothing for a
-  Real3D renderer to draw.
+  every field. Until that changes there is nothing for a Real3D renderer to
+  draw. The decrementer, fixed in `model3recomp`, was one cause and is not
+  the last one: the counter it drives now advances and the game still does
+  not submit a scene.
 
 ### Status
 - Boots, completes I/O init, takes VBlank interrupts, runs SCSI DMA, writes

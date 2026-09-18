@@ -130,11 +130,19 @@ how each of these was found.
 ### Where it stops now
 
 The frame task runs every field, the interrupt path is healthy, and the game
-draws its text. Then it stops making progress: its own state machine is
-frozen. The frame task's first act is to compare a counter at RAM
-`0x001A38C0` against a target at `0x001A37AC`, and it leaves early because the
-counter never moves — it reads 124 against a target of 509 at fields 1,200,
-2,500, 6,000 and 15,000 alike.
+draws its text. Then it stops making progress, and the reason is not the one
+it first appears to be.
+
+The most recent thing found and fixed was the **decrementer**. The game's
+timing calibration waits on a counter at RAM `0x001C10D0`, and the only code
+that writes it is the handler the game installs at exception vector `0x900` —
+a pointer that appears nowhere in RAM, because the processor calls it rather
+than the game. `model3recomp` had no decrementer, so that wait could never
+end; the interpreter and the recompiled binary sat in it forever and agreed
+exactly, which is what ruled out a lifter bug. With SPR 22 counting down and
+its `0 -> -1` crossing taking the exception, the counter advances.
+
+It still does not reach attract mode. Whatever is next is past that wait.
 
 **There is no 3D scene to draw, which is why the Real3D renderer is not the
 next thing to write.** Dump the scene memory and the picture is unambiguous:
