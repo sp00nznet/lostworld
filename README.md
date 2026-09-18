@@ -165,6 +165,35 @@ port rather than an address window, and the DMA range check had been rejecting
 every transfer to it, because a thousand bytes to one address looks like a
 thousand bytes off the end of it.
 
+### The nearest thing to a cause
+
+Tracing the code that *would* submit geometry gets to something specific.
+Polygon RAM is written from exactly one place, `0x0010FC14`, which stages a
+scene at RAM `0x001BAA50` and DMAs it to `0x98001000`. That is called only
+from `0x00001A64`, which has four callers — `0x000022CC`, `0x000298A4`,
+`0x00029D64`, `0x000A70DC` — and **none of the four ever runs**, so the whole
+path is dormant.
+
+Upstream of that, the game's own OS dispatches a callback slot only when the
+matching bit is set in the flags word at RAM `0x000007F4`:
+
+```
+001183C4  lwz    r11, [0x000007F4]
+001183C8  andis. r0, r11, 0x1000       ; bit 0x10000000
+001183D8  bc     -> 0x001183FC         ; clear: skip the task entirely
+001183E0  lwz    r9, [0x001EED98]      ; else call what is in that slot
+001183F4  blrl
+```
+
+Slot `0x001EED98` holds a real task, `0x00032B2C`. Its bit is never set —
+`[0x000007F4]` reads `0x20000800` from the first field to the ten-thousandth
+— so that task has never once run. The OS sets these bits at `0x00116E04`.
+
+Forcing the bit is not the fix and was tried: the task still does not start
+and the scheduler comes apart, which says the task has to be *started*
+properly rather than merely marked. But it is the narrowest description of
+the gap so far, and it is upstream of the renderer rather than in it.
+
 **There is no 3D scene to draw, which is why the Real3D renderer is not the
 next thing to write.** Dump the scene memory and the picture is unambiguous:
 

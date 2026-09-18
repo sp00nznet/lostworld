@@ -58,7 +58,7 @@ static void on_field(void)
         return;
     model3recomp_screenshot("shot.ppm");
 #ifdef M3_LOOP_GUARD
-    m3_fn_report(40);
+    m3_fn_report(200);
 #endif
     if (getenv("M3_DUMP_SCENE"))
         model3recomp_dump_scene(getenv("M3_DUMP_SCENE"));
