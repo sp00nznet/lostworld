@@ -52,6 +52,9 @@ That is why `tools/lift.py` boots the machine before it lifts it.
 | `0xF0040004` | serial ready line must change state | I/O init never finishes |
 | `0xF1180010` | writing a bit clears it in `0xF0100018` | never leaves its interrupt handler |
 | `0xC1000014` | SCSI ISTAT; DIP set by a SCRIPTS `INT` | polls ~20 M times |
+| `0xF0C00CFC` | PCI config: device 13 is `0x16C311DB` | never leaves `0x001179C8` |
+| `0xF0C00CFC` | PCI config: device 14 is `0x00011000` | SCSI never configured |
+| `0x84000000` | bit 1 must change between reads | never leaves `0x00117A28` |
 
 The main loop never reads the interrupt controller. It calls a service routine
 through a pointer and waits on a flag byte at RAM `0x6ED` that only the VBlank
@@ -73,3 +76,33 @@ where there is a glyph, while times thirty-two lands on blank. Palette entries
 are 32 bits with a 1-5-5-5 colour in the first half.
 
 Attract mode is mostly 3D, so the tilemap alone does not get there.
+
+## Getting to the main entry
+
+RAM `0x0` is nine `bl` instructions, and then two that matter:
+
+```
+0x0000002C  bl 0x0011AF60      ; the kernel's own start-up
+0x00000030  b  0x00001A34      ; tail jump to main -- not a call
+0x00000034  b  0x00000034      ; "cannot get here"
+```
+
+`0x30` is a branch, not a call, so `0x0011AF60` returning is the only thing
+that starts the game. It is a long way down: `0x0011B068` calls `0x0010F564`,
+which calls `0x001179C8`, which is where the Real3D handshake lives. Each of
+those had a wait in it that the board was not answering -- see the README for
+the three that were wrong.
+
+The installer itself is one function beginning at `0x00001934`. There is no
+epilogue between `0x00001980` and `0x00001984`, so the `[0x001A3474]` guard at
+`0x00001984` and the install site at `0x000019A8` belong to it:
+
+```
+0x00001984  lwz   r0, [0x001A3474]
+0x00001994  bc    -> 0x000019B0      ; non-zero picks the other task
+0x000019A4  addi  r3, r9, 0x1578     ; the frame task
+0x000019A8  bl    0x00117C44         ; into slot 0x001EED80
+```
+
+The boot takes about 370 fields to get here, most of it the Sega region
+warning screen, which is displayed deliberately and times out after 299.

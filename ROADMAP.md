@@ -4,9 +4,10 @@ The milestone is one specific frame: **The Lost World's attract mode**.
 
 ## Next: the Real3D
 
-Everything else in the picture already works. The game builds a scene every
-frame — the culling and polygon RAM fill up, and the SCSI DMA feeds the
-texture port — and nothing draws it.
+Everything else in the picture already works. The game now reaches its main
+entry, installs the frame task `0x1578`, and builds a scene every frame — the
+culling and polygon RAM fill up, and the SCSI DMA feeds the texture port — and
+nothing draws it.
 
 This is board-level work and belongs in
 [model3recomp](https://github.com/sp00nznet/model3recomp), not here:

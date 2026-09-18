@@ -17,7 +17,19 @@ this project adheres to [Semantic Versioning](https://semver.org/).
   enters at the reset vector.
 - `docs/technical/bring-up.md` — what this title needed, and why.
 
+### Fixed
+- The game reaches its main entry. Three board-level faults were in the way,
+  each hiding the next: PCI configuration space did not exist, so the game
+  never found the Real3D or the 53C810 and spun on the readiness flag at RAM
+  `0x6FB`; the Real3D status register at `0x84000000` was a constant, so the
+  frame ping the boot waits on could never change; and the interpreter
+  performed SCRIPTS memory moves that `src/scsi.c` already rejected as
+  out of range, one of which zeroed the boot console's text buffer pointer and
+  so turned the warning screen's teardown into a `memset` over the init chain.
+
 ### Status
 - Boots, completes I/O init, takes VBlank interrupts, runs SCSI DMA, writes
-  tilemap VRAM, and renders it. Attract mode is not reached: it is mostly 3D
-  and the Real3D renderer is not written.
+  tilemap VRAM, renders it, clears the Sega region warning screen, reaches the
+  main entry at RAM `0x30`, and installs and runs the frame task `0x1578`.
+  Attract mode is still not drawn: it is mostly 3D and the Real3D renderer is
+  not written.

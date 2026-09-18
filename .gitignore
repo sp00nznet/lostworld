@@ -10,8 +10,9 @@
 entries*.txt
 *.snapshot
 
-# ROM dumps and images built from them.
+# ROM dumps and images built from them, and anything rendered from them.
 roms/
+*.ppm
 *.zip
 *.bin
 *.rom

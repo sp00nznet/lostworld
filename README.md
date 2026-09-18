@@ -14,7 +14,8 @@ the same way on top of `model2recomp`.
 
 ## Status
 
-**Alpha. The game boots and runs as native code. Attract mode is not reached.**
+**Alpha. The game boots, runs as native code, and reaches its main entry.
+The Real3D renderer is not written, so there is still nothing 3D to see.**
 
 | | |
 |---|---|
@@ -26,38 +27,86 @@ the same way on top of `model2recomp`.
 | Writes tilemap VRAM | yes |
 | Renders those tiles to a framebuffer | yes |
 | Agrees with the interpreter, access for access | yes |
-| **Attract mode** | **not yet** |
+| Finds its PCI devices | yes |
+| Clears the Sega region warning screen | yes |
+| Reaches the game's main entry at RAM `0x30` | yes |
+| **Installs and runs the frame task `0x1578`** | **yes** |
+| **Attract mode, drawn** | **not yet -- no Real3D renderer** |
 
 The 2D tilemap pipeline runs end to end — ROM to lifted C to native execution
 to VRAM to pixels.
 
 The lift itself is in good shape, and the evidence is differential rather than
 anecdotal: run the same boot through `model3recomp`'s interpreter and through
-the recompiled binary, and the two device-access traces are identical for
-30,000 accesses, with byte-identical buffers at the end — 24,525 words of VRAM
-and 8,306 words of culling RAM.
+the recompiled binary, and the two device-access traces agree access for
+access for the first 26,440 of them. Where they part is not a disagreement
+about any device — it is *when* the field boundary falls, because the
+interpreter paces fields off an instruction count and the runtime paces them
+off guest work. The divergence is the interrupt handler running a few accesses
+earlier on one side than the other.
 
-### Where it stops
+### What was blocking it
 
-The game settles into its **operator service menu**, not attract mode.
+The game used to settle into its **operator service menu** instead of starting.
+Per-frame work is dispatched through ten callback slots at RAM
+`0x001EED7C..0x001EEDA0`, and slot `0x001EED80` never received the frame task
+`0x1578` -- it held the null stub `0x00117864` for every field observed.
 
-Per-frame work on this title is dispatched through ten callback slots at RAM
-`0x001EED7C..0x001EEDA0`. Slot `0x001EED80` should receive the frame task
-`0x1578`; here it holds the null stub `0x00117864` for every field observed.
-The install site is `0x000019A8`, guarded by `[0x001A3474] == 0` at
-`0x00001934`. Execution provably reaches `0x000018FC` and the guard byte reads
-0, so the stall sits in the three calls between — `0x0002E9BC`, the epilogue of
-`0x000018BC`, and `0x00001984`.
+Three board-level faults were in the way, each hiding the next. All three are
+fixed; the notes below are what they were, because none of them announced
+itself and the first two had been wrongly ruled out.
 
-Next step: `python ext/model3recomp/tools/ppc_interp.py ... --break-at` on each
-of those, to name the last one reached.
+**1. PCI configuration space did not exist.** The game will not come up until
+it finds two devices by ID, through the MPC105's port pair at `0xF0800CF8`
+and `0xF0C00CFC`:
 
-Not the cause, though each was suspected and tested: the sound board, PCI, the
-SCSI engine, the Real3D ready bit, either input polarity, or the two interrupt
-lines the guest enables but the runtime never asserts.
+| device | must answer | |
+|---|---|---|
+| 13 | `0x16C311DB` | Sega Real3D |
+| 14 | `0x00011000` | LSI 53C810 |
 
-The Real3D renderer is also unwritten, so even once attract mode starts, most
-of it will be missing. That is board-level work and lives in `model3recomp`.
+The device-13 arm is what sets the readiness flag at RAM `0x6FB`, and
+`0x001179C8` spins on that flag forever without it. Both devices already live
+at fixed addresses here, so the BAR writes that follow are dropped.
+
+**2. The Real3D status register was a constant.** The boot copies nine dwords
+from `0x84000000` into RAM with `stwbrx` -- the chip is on the PCI side, so
+the cached copy is byte-reversed -- and then waits for bit `0x02000000` of
+that copy to flip. Byte-reversed, that is bit 1 of the register. A constant
+never flips. It is toggled per read now, which is all the wait needs.
+
+**3. A malformed SCRIPTS program was zeroing work RAM.** `src/scsi.c` already
+refused memory moves whose source or destination was not mapped;
+`tools/ppc_interp.py` did not, and performed them. A bulk write through the
+`0xC0000000` window kicks SCRIPTS with garbage DSP values -- the register
+image is written a word at a time and one word lands on offset `0x2C` -- and
+one of the resulting moves, `2C022031 -> 00000980, 8064 bytes`, zeroed RAM
+`0x980..0x2900`. That range holds `[0x00000E5C]`, the boot console's text
+buffer pointer. Three hundred fields later the Sega region warning screen
+tore itself down with `memset([0x00000E5C], 0, 8KB)`, and with the pointer
+zeroed that wiped RAM `0x0..0x2000` -- including the init chain at `0x30`.
+
+With those three fixed the boot runs to completion:
+
+| | field |
+|---|---|
+| RAM `0x30`, the tail jump to main | 369 |
+| `0x00001934`, the installer | 369 |
+| `0x00001984`, the `[0x001A3474] == 0` guard | 377 |
+| `0x000019A8`, the install site | 377 |
+| `0x00001578`, the frame task running | 378 |
+
+The 299-field pause in the middle is not a fault: it is the Sega region
+**WARNING** screen, displayed for about five seconds by design.
+
+`tools/ppc_interp.py --break-at ADDR` reports whether execution ever reaches
+an address, and is repeatable, so one run answers a whole call chain. That is
+how each of these was found.
+
+### Where it stops now
+
+The Real3D renderer is unwritten, so the frame task builds a scene every field
+that nothing draws. That is board-level work and lives in `model3recomp`.
 
 No screenshots of the game yet. There will be some the moment there is
 something to show, and not before.
