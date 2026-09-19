@@ -10,6 +10,7 @@
  * frame goes in the frame hook.
  */
 #include "model3recomp/model3recomp.h"
+#include "model3recomp/bus.h"
 
 #include "lwrom_funcs.h"
 #include "lwram_funcs.h"
@@ -85,6 +86,8 @@ static void on_field(void)
 #ifdef M3_LOOP_GUARD
     m3_fn_report(200);
 #endif
+    if (getenv("M3_DROPPED"))
+        bus_report_dropped_writes();
     if (getenv("M3_DUMP_SCENE"))
         model3recomp_dump_scene(getenv("M3_DUMP_SCENE"));
     fprintf(stderr, "captured shot.ppm after %llu fields\n",
