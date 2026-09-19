@@ -10,9 +10,11 @@
 entries*.txt
 *.snapshot
 
-# ROM dumps and images built from them, and anything rendered from them.
+# ROM dumps and images built from them, and anything rendered from them --
+# except the one screenshot in docs/, which is there to show progress.
 roms/
 *.ppm
+!docs/screenshot.png
 *.zip
 *.bin
 *.rom

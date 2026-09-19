@@ -1,5 +1,15 @@
 # lostworld
 
+![The Lost World: Jurassic Park, statically recompiled](docs/screenshot.png)
+
+Left: the tile generator. This one is pixel-exact -- the same bytes as MAME
+renders, checked frame against frame.
+
+Right: the Real3D layer, mid-attract. The geometry, the transforms and the
+shading are the game's own; the flat grey is ours, because textures are not
+implemented and every polygon draws in its header colour. Whatever the
+subject is, you cannot tell from this, and that is the honest state of it.
+
 **The Lost World: Jurassic Park** (Sega, 1997) statically recompiled — the
 game's PowerPC code becomes native C, linked against a Model 3 board.
 
