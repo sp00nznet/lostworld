@@ -52,8 +52,33 @@ static uint8_t *slurp(const char *path, size_t *len, int required)
  * conformance harness and for bug reports; harmless otherwise. */
 static uint64_t g_stop_after;
 
+/* M3_SHOT_EVERY=N[,DIR]: write shot_<field>.ppm every N fields. One run of
+ * attract mode is some 4000 fields and its 3D runs for 800 of them, so
+ * sampling it a field at a time means forty runs to see one sequence. */
+static void shots(void)
+{
+    static long every = -1;
+    static char dir[256];
+    uint64_t f = model3recomp_frame_count();
+    char path[512];
+
+    if (every < 0) {
+        const char *e = getenv("M3_SHOT_EVERY");
+        const char *c;
+        every = e ? strtol(e, NULL, 0) : 0;
+        c = e ? strchr(e, ',') : NULL;
+        snprintf(dir, sizeof dir, "%s", c ? c + 1 : ".");
+    }
+    if (every <= 0 || (f % (uint64_t)every) != 0)
+        return;
+    snprintf(path, sizeof path, "%s/shot_%06llu.ppm", dir,
+             (unsigned long long)f);
+    model3recomp_screenshot(path);
+}
+
 static void on_field(void)
 {
+    shots();
     if (!g_stop_after || model3recomp_frame_count() < g_stop_after)
         return;
     model3recomp_screenshot("shot.ppm");
