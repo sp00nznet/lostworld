@@ -73,6 +73,14 @@ def main():
     os.makedirs(WORK, exist_ok=True)
     os.makedirs(OUT, exist_ok=True)
 
+    # A lift with fewer functions than the last one leaves its tail behind,
+    # and CMake globs this directory: lwram_code_012.c from the previous run
+    # links alongside the new lwram_code_010.c and every function in the
+    # overlap is multiply defined.
+    for f in os.listdir(OUT):
+        if f.startswith(("lwram_", "lwrom_")):
+            os.remove(os.path.join(OUT, f))
+
     print("boot: running to the hand-off into RAM")
     rc = run([sys.executable, os.path.join(EXT, "ppc_interp.py"), PROG,
               "--base", ROM_BASE, "--max", a.max, "--snapshot", SNAPSHOT])
