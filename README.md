@@ -5,11 +5,9 @@
 Left: the tile generator. This one is pixel-exact -- the same bytes as MAME
 renders, checked frame against frame.
 
-Right: the Real3D layer, one field out of an attract-mode shot — the
-game's own geometry, transforms, per-vertex normals, lighting and textures.
-It is a dark scene and it renders dark. No environment geometry is present
-in the scene the game builds; what surrounds the subject is textured
-quads.
+Right: the high score table, which is four tilemap layers at two different
+pixel depths — an eight-bit photographic background with four-bit text over
+it.
 
 **The Lost World: Jurassic Park** (Sega, 1997) statically recompiled — the
 game's PowerPC code becomes native C, linked against a Model 3 board.
