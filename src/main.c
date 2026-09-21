@@ -86,8 +86,10 @@ static void on_field(void)
 #ifdef M3_LOOP_GUARD
     m3_fn_report(200);
 #endif
-    if (getenv("M3_DROPPED"))
+    if (getenv("M3_DROPPED")) {
         bus_report_dropped_writes();
+        bus_report_device_reads();
+    }
     if (getenv("M3_DUMP_SCENE"))
         model3recomp_dump_scene(getenv("M3_DUMP_SCENE"));
     fprintf(stderr, "captured shot.ppm after %llu fields\n",

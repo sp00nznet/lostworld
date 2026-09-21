@@ -407,8 +407,8 @@ program EPROMs : epr-19936.20, epr-19937.19, epr-19938.18, epr-19939.17
 maps at        : 0xFFE00000
 reset vector   : 0xFFF00100
 verified       : 7/7 exception vectors
-banked CROM    : roms/lw_bank.bin  (0x2000000 bytes from 16 chips)
-VROM           : roms/lw_vrom.bin  (0x4000000 bytes from 16 chips)
+banked CROM    : roms/lw_bank.bin  (0x4000000 bytes from 16 chips)
+VROM           : roms/lw_vrom.bin  (0x2000000 bytes from 16 chips)
 ```
 
 ### 2. Recompile the game
@@ -428,6 +428,18 @@ cmake -S . -B build
 cmake --build build --config Release
 ./build/lostworld
 ```
+
+With SDL2 the game runs in a window; without it the build is headless and
+only writes screenshots. If SDL2 is installed through vcpkg, point CMake at
+it:
+
+```
+cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=<vcpkg>/scripts/buildsystems/vcpkg.cmake
+```
+
+Cabinet buttons are on the keys an arcade front end would use: **5** and
+**6** insert coins, **1** and **2** are the start buttons, **F2** is test and
+**F3** service. Escape quits.
 
 Pass a field count to capture a screenshot and exit, which is what the
 conformance runs do:
