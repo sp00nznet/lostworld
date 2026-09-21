@@ -2,12 +2,9 @@
 
 ![The Lost World: Jurassic Park, statically recompiled](docs/screenshot.png)
 
-Left: the tile generator. This one is pixel-exact -- the same bytes as MAME
-renders, checked frame against frame.
-
-Right: the high score table, which is four tilemap layers at two different
-pixel depths — an eight-bit photographic background with four-bit text over
-it.
+The start of stage one, reached by dropping a coin and pressing start. Four
+tilemap layers at two different pixel depths: an eight-bit photographic map
+over a scrolling four-bit background, with four-bit text over both.
 
 **The Lost World: Jurassic Park** (Sega, 1997) statically recompiled — the
 game's PowerPC code becomes native C, linked against a Model 3 board.
@@ -23,8 +20,9 @@ the same way on top of `model2recomp`.
 
 ## Status
 
-**Alpha. The game boots, runs as native code, and reaches its main entry.
-The Real3D renderer is not written, so there is still nothing 3D to see.**
+**Alpha. The game boots, runs as native code, plays through its attract
+cycle, takes a credit and starts a round. The 3D renders in attract; in a
+round the game builds singular matrices and the world does not appear.**
 
 | | |
 |---|---|
@@ -39,11 +37,16 @@ The Real3D renderer is not written, so there is still nothing 3D to see.**
 | Finds its PCI devices | yes |
 | Clears the Sega region warning screen | yes |
 | Reaches the game's main entry at RAM `0x30` | yes |
-| **Installs and runs the frame task `0x1578`** | **yes** |
-| Runs that task every field, in the interpreter and natively | yes |
-| **Draws its own text, legibly** | **yes** |
-| Submits 3D geometry | no -- see below |
-| **Attract mode, drawn** | **not yet** |
+| Installs and runs the frame task `0x1578` | yes |
+| Draws its own text, legibly | yes |
+| Submits 3D geometry | yes |
+| **Attract mode, drawn, with textures** | **yes** |
+| Tilemap layers behind and in front of the 3D | yes |
+| Window, coin, start, light gun, trigger | yes |
+| **Takes a credit and starts stage one** | **yes** |
+| In-game HUD, stage intro, high score table | yes |
+| Round runs and returns to attract | yes |
+| **The 3D world during a round** | **not yet -- see docs/technical/real3d.md** |
 
 The 2D tilemap pipeline runs end to end — ROM to lifted C to native execution
 to VRAM to readable pixels. The game draws its own region warning screen and
