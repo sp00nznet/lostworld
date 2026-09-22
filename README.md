@@ -5,9 +5,8 @@
 Left: the attract scene, a textured T-Rex roaring in the rain.
 
 Right: stage one during a round, tilemap layers off so the Real3D is
-visible on its own. Most of its surfaces are flat because their
-textures resolve to a page of texture memory nothing is ever uploaded
-to -- see docs/technical/real3d.md.
+visible on its own. Every surface is textured; the textures still
+repeat too often across each one.
 
 **The Lost World: Jurassic Park** (Sega, 1997) statically recompiled — the
 game's PowerPC code becomes native C, linked against a Model 3 board.
