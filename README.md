@@ -2,9 +2,10 @@
 
 ![The Lost World: Jurassic Park, statically recompiled](docs/screenshot.png)
 
-The start of stage one, reached by dropping a coin and pressing start. Four
-tilemap layers at two different pixel depths: an eight-bit photographic map
-over a scrolling four-bit background, with four-bit text over both.
+Left: the attract scene, a textured T-Rex roaring in the rain.
+
+Right: stage one during a round, with the tilemap layers off so the
+Real3D is visible on its own.
 
 **The Lost World: Jurassic Park** (Sega, 1997) statically recompiled — the
 game's PowerPC code becomes native C, linked against a Model 3 board.
@@ -21,8 +22,7 @@ the same way on top of `model2recomp`.
 ## Status
 
 **Alpha. The game boots, runs as native code, plays through its attract
-cycle, takes a credit and starts a round. The 3D renders in attract; in a
-round the game builds singular matrices and the world does not appear.**
+cycle, takes a credit and plays a round with the 3D world on screen.**
 
 | | |
 |---|---|
@@ -46,7 +46,7 @@ round the game builds singular matrices and the world does not appear.**
 | **Takes a credit and starts stage one** | **yes** |
 | In-game HUD, stage intro, high score table | yes |
 | Round runs and returns to attract | yes |
-| **The 3D world during a round** | **not yet -- see docs/technical/real3d.md** |
+| **The 3D world during a round** | **yes** |
 
 The 2D tilemap pipeline runs end to end — ROM to lifted C to native execution
 to VRAM to readable pixels. The game draws its own region warning screen and
