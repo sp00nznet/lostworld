@@ -1,12 +1,6 @@
 # lostworld
 
-![The Lost World: Jurassic Park, statically recompiled](docs/screenshot.png)
-
-Left: the attract scene, a textured T-Rex roaring in the rain.
-
-Right: stage one during a round, tilemap layers off so the Real3D is
-visible on its own. Every surface is textured; the textures still
-repeat too often across each one.
+![Stage one's boss: the T-Rex charges the truck, in the recompiled build](docs/hero.gif)
 
 **The Lost World: Jurassic Park** (Sega, 1997) statically recompiled — the
 game's PowerPC code becomes native C, linked against a Model 3 board.
@@ -22,56 +16,56 @@ the same way on top of `model2recomp`.
 
 ## Status
 
-**Alpha. The game boots, runs as native code, plays through its attract
-cycle, takes a credit and plays a round with the 3D world on screen.**
+**Playable. The game boots, runs its whole attract cycle, takes a credit and
+plays through stage one to the T-Rex, aimed and fired with the mouse.**
 
 | | |
 |---|---|
-| Boots from the reset vector | yes |
-| Copies itself into RAM and runs from there | yes |
-| Completes I/O board init | yes |
-| Takes VBlank interrupts | yes |
-| Runs SCSI DMA to the Real3D | yes |
-| Writes tilemap VRAM | yes |
-| Renders those tiles to a framebuffer | yes |
+| Boots from the reset vector, runs from RAM as native code | yes |
+| I/O board, VBlank, PCI, SCSI DMA to the Real3D | yes |
 | Agrees with the interpreter, access for access | yes |
-| Finds its PCI devices | yes |
-| Clears the Sega region warning screen | yes |
-| Reaches the game's main entry at RAM `0x30` | yes |
-| Installs and runs the frame task `0x1578` | yes |
-| Draws its own text, legibly | yes |
-| Submits 3D geometry | yes |
-| **Attract mode, drawn, with textures** | **yes** |
-| Tilemap layers behind and in front of the 3D | yes |
-| Window, coin, start, light gun, trigger | yes |
-| **Takes a credit and starts stage one** | **yes** |
-| In-game HUD, stage intro, high score table | yes |
-| Round runs and returns to attract | yes |
-| **The 3D world during a round** | **yes** |
+| Tilemaps: scroll, line scroll, layer masks, fades | yes |
+| **Attract mode, complete** — logo, "something has survived", title, rankings, demo | **yes** |
+| Real3D: textured, lit, translucent, filtered | yes |
+| Textures from the FIFO and from VROM, all twelve formats | yes |
+| Coin, start, light gun aim, trigger, reload | yes |
+| **Stage one, played through to the boss** | **yes** |
+| Held to the board's 57.524 Hz | yes |
+| Sound | no — the board has no 68000 or SCSPs yet |
+| High scores and settings kept between runs | no |
 
-The 2D tilemap pipeline runs end to end — ROM to lifted C to native execution
-to VRAM to readable pixels. The game draws its own region warning screen and
-its boot report, and both can be checked word for word against the strings in
-the ROM:
+### Known issues
 
-```
-             W A R N I N G
+- **The T-Rex's weak points are not drawn.** In the boss fight the circles
+  around the teeth and eyes that you are meant to shoot at do not appear. The
+  fight itself works -- hits register and the health bar drops.
+- **The ammunition counter comes and goes** rather than staying on screen.
+- **Some scenes are washed out.** A translucent mist layer is drawn too strong
+  in places, the start of the T-Rex encounter among them.
+- Mipmaps are not used, so distant surfaces shimmer, and there are small
+  graphical errors here and there -- stray polygons, the odd wrong texture.
 
- THIS GAME IS TO BE USED ONLY IN JAPAN.
-    EXPORT,SALES,DISTRIBUTION AND/OR
-    OPERATION OUTSIDE THIS AREA MAY
-CONSTITUTE A VIOLATION OF INTERNATIONAL
-  LAWS ON COPYRIGHTS AND/OR INDUSTRIAL
-    PROPERTY RIGHTS AND SUBJECT THE
- VIOLATING PARTY TO LEGAL PROCEEDINGS.
-         SEGA ENTERPRISES,LTD.
-```
+### What fixed it
 
-That is worth more than it looks. A tilemap decode has several orderings in
-it and a wrong one still draws *something*; text whose wording is known in
-advance is the only cheap way to tell a right answer from a plausible one.
-The previous decode read the scroll table as a name table and drew one tile
-over the entire screen.
+Most of what stood between attract mode and a playable game was in the board,
+and every fix below came from comparing against
+[Supermodel](https://github.com/trzy/Supermodel)'s source rather than from
+guessing at the hardware:
+
+| | was | is |
+|---|---|---|
+| Tilemap register `0x20` | depth and priority nibbles swapped | the title logo and credits roll decode |
+| Tilemap scroll | not implemented | scroll, per-line scroll, A/A' stencil, colour offsets (fades, lightning) |
+| Polygon translucency | drawn opaque | a 40% mist sheet stops hiding the title sequence |
+| Culling node siblings | given the node's own transform | a stray cyan shape leaves the demo |
+| Per-node texture offset | ignored | models get their own skins |
+| VROM texture address | 16-bit units | 32-bit words: the jungle, the village, the trees |
+| Texture type byte | ignored | mip-only loads stop overwriting the textures they belong to |
+| Texel formats | one of twelve | greyscale and alpha formats, tinted by polygon colour |
+| Light gun | fixed at the centre | the mouse, on Supermodel's 150..651 x 80..465 calibration |
+
+The full bring-up story -- the boot, the stalls, the ROM layout, and the
+dead ends -- is in [docs/technical/bring-up.md](docs/technical/bring-up.md).
 
 The lift itself is in good shape, and the evidence is differential rather than
 anecdotal: run the same boot through `model3recomp`'s interpreter and through
@@ -79,305 +73,7 @@ the recompiled binary, and the two device-access traces agree access for
 access for the first 26,440 of them. Where they part is not a disagreement
 about any device — it is *when* the field boundary falls, because the
 interpreter paces fields off an instruction count and the runtime paces them
-off guest work. The divergence is the interrupt handler running a few accesses
-earlier on one side than the other.
-
-### What was blocking it
-
-The game used to settle into its **operator service menu** instead of starting.
-Per-frame work is dispatched through ten callback slots at RAM
-`0x001EED7C..0x001EEDA0`, and slot `0x001EED80` never received the frame task
-`0x1578` -- it held the null stub `0x00117864` for every field observed.
-
-Three board-level faults were in the way, each hiding the next. All three are
-fixed; the notes below are what they were, because none of them announced
-itself and the first two had been wrongly ruled out.
-
-**1. PCI configuration space did not exist.** The game will not come up until
-it finds two devices by ID, through the MPC105's port pair at `0xF0800CF8`
-and `0xF0C00CFC`:
-
-| device | must answer | |
-|---|---|---|
-| 13 | `0x16C311DB` | Sega Real3D |
-| 14 | `0x00011000` | LSI 53C810 |
-
-The device-13 arm is what sets the readiness flag at RAM `0x6FB`, and
-`0x001179C8` spins on that flag forever without it. Both devices already live
-at fixed addresses here, so the BAR writes that follow are dropped.
-
-**2. The Real3D status register was a constant.** The boot copies nine dwords
-from `0x84000000` into RAM with `stwbrx` -- the chip is on the PCI side, so
-the cached copy is byte-reversed -- and then waits for bit `0x02000000` of
-that copy to flip. Byte-reversed, that is bit 1 of the register. A constant
-never flips. It is toggled per read now, which is all the wait needs.
-
-**3. A malformed SCRIPTS program was zeroing work RAM.** `src/scsi.c` already
-refused memory moves whose source or destination was not mapped;
-`tools/ppc_interp.py` did not, and performed them. A bulk write through the
-`0xC0000000` window kicks SCRIPTS with garbage DSP values -- the register
-image is written a word at a time and one word lands on offset `0x2C` -- and
-one of the resulting moves, `2C022031 -> 00000980, 8064 bytes`, zeroed RAM
-`0x980..0x2900`. That range holds `[0x00000E5C]`, the boot console's text
-buffer pointer. Three hundred fields later the Sega region warning screen
-tore itself down with `memset([0x00000E5C], 0, 8KB)`, and with the pointer
-zeroed that wiped RAM `0x0..0x2000` -- including the init chain at `0x30`.
-
-With those three fixed the boot runs to completion:
-
-| | field |
-|---|---|
-| RAM `0x30`, the tail jump to main | 369 |
-| `0x00001934`, the installer | 369 |
-| `0x00001984`, the `[0x001A3474] == 0` guard | 377 |
-| `0x000019A8`, the install site | 377 |
-| `0x00001578`, the frame task running | 378 |
-
-The 299-field pause in the middle is not a fault: it is the Sega region
-**WARNING** screen, displayed for about five seconds by design.
-
-`tools/ppc_interp.py --break-at ADDR` reports whether execution ever reaches
-an address, and is repeatable, so one run answers a whole call chain. That is
-how each of these was found.
-
-### Where it stops now
-
-The frame task runs every field, the interrupt path is healthy, and the game
-draws its text. Then it stops making progress, and the reason is not the one
-it first appears to be.
-
-The most recent thing found and fixed was the **decrementer**. The game's
-timing calibration waits on a counter at RAM `0x001C10D0`, and the only code
-that writes it is the handler the game installs at exception vector `0x900` —
-a pointer that appears nowhere in RAM, because the processor calls it rather
-than the game. `model3recomp` had no decrementer, so that wait could never
-end; the interpreter and the recompiled binary sat in it forever and agreed
-exactly, which is what ruled out a lifter bug. With SPR 22 counting down and
-its `0 -> -1` crossing taking the exception, the counter advances.
-
-It still does not reach attract mode, and the reason is now narrow enough to
-state exactly. Instrument every guest function entry rather than only the
-indirect dispatches and the frame is legible:
-
-| | |
-|---|---|
-| Frame task `0x1578` | runs every field |
-| Real3D triggered | ~476 times per 2,500 fields, by DMA of a 4-byte word |
-| Culling RAM written | 23 small transfers, all in the first second |
-| Polygon RAM written | never |
-| Upload FIFO at `0x94000000` | 464 transfers — a gamma ramp, re-sent every frame |
-| Tilemap | deliberately blank after the boot report |
-
-So the guest is not stalled in the sense of being stuck in a loop: it runs a
-frame, sets its colour ramp, triggers the renderer, and does it again. It just
-never sends any geometry. The blank screen after the boot report is the game's
-own doing, not a renderer that cannot draw.
-
-One real fault was found along the way and fixed: the FIFO above is a single
-port rather than an address window, and the DMA range check had been rejecting
-every transfer to it, because a thousand bytes to one address looks like a
-thousand bytes off the end of it.
-
-### The nearest thing to a cause
-
-Tracing the code that *would* submit geometry gets to something specific.
-Polygon RAM is written from exactly one place, `0x0010FC14`, which stages a
-scene at RAM `0x001BAA50` and DMAs it to `0x98001000`. That is called only
-from `0x00001A64`, which has four callers — `0x000022CC`, `0x000298A4`,
-`0x00029D64`, `0x000A70DC` — and **none of the four ever runs**, so the whole
-path is dormant.
-
-Upstream of that, the game's own OS dispatches a callback slot only when the
-matching bit is set in the flags word at RAM `0x000007F4`:
-
-```
-001183C4  lwz    r11, [0x000007F4]
-001183C8  andis. r0, r11, 0x1000       ; bit 0x10000000
-001183D8  bc     -> 0x001183FC         ; clear: skip the task entirely
-001183E0  lwz    r9, [0x001EED98]      ; else call what is in that slot
-001183F4  blrl
-```
-
-Slot `0x001EED98` holds a real task, `0x00032B2C`. Its bit is never set —
-`[0x000007F4]` reads `0x20000800` from the first field to the ten-thousandth
-— so that task has never once run. The OS sets these bits at `0x00116E04`.
-
-Forcing the bit is not the fix and was tried: the task still does not start
-and the scheduler comes apart, which says the task has to be *started*
-properly rather than merely marked. Forcing it once rather than every field
-does work, and draws the operator test menu — so the dispatch mechanism and
-the tilemap are both fine, and that slot holds the service menu rather than
-anything to do with attract mode.
-
-### The ROM images were built wrong
-
-`mame -listxml lostwsga` gives the authoritative layout, region by region and
-offset by offset, and `model3recomp`'s loader disagreed with it in a way that
-size checks cannot catch. The obvious reading is the wrong one:
-
-| | was | is |
-|---|---|---|
-| banked CROM | sixteen **2 MB** parts, 32 MB | sixteen **4 MB** parts, **64 MB** |
-| VROM | sixteen **4 MB** parts, 16-lane | sixteen **2 MB** parts, **8-lane** |
-| group order | chip-number order | reversed (CROM), pairs swapped (VROM) |
-
-Both images came out the right size either way, so nothing complained, and
-the game read plausible nonsense rather than nothing — which is worse, because
-it gets further before going wrong. The corrected banked CROM is verified
-chip by chip against MAME's layout: each part lands exactly where that layout
-puts it, byte-swapped, eight bytes apart.
-
-It also settles something the guest had been saying all along. 64 MB in an
-8 MB window is **eight** banks, not four — which is why it writes `F0`
-through `F7`, values no four-bank reading could account for.
-
-### Six megabytes of the data ROM were never mapped
-
-The one measured with MAME rather than reasoned about. Run the game under
-MAME, read its memory back, and the CROM map is plain:
-
-| CPU address | what is there |
-|---|---|
-| `0xFF000000`–`0xFF7FFFFF` | zeros — on real hardware too |
-| `0xFF800000`–`0xFFDFFFFF` | the data image, offset 0 onward, **unbanked** |
-| `0xFFE00000`–`0xFFFFFFFF` | the 2 MB program |
-
-`model3recomp` had nothing at all in the middle span, so a game asking for its
-own tables got zeros. This one reads `0xFFA18DEC`, where the image holds an
-`"M3"`-tagged record, and found none of it. Now mapped, and checked address by
-address against MAME: `0xFF800000` is offset 0, `0xFFC00000` is `0x400000`,
-`0xFFDFFFF0` is `0x5FFFF0`.
-
-It also closes the bank-register question: driving that register through all
-256 values under MAME moves none of this. The span is not banked, so no
-reading of those bits was ever going to be the answer — which is why none of
-the two dozen tried worked.
-
-### What the game should be showing, and where it stops
-
-`mame -listxml` was useful; running MAME is better. It plays this game on this
-machine, so the question "what should be on screen at this point" has an
-answer rather than a guess. Two things fall straight out of that.
-
-The first is a check on the tilemap work above: MAME's frame 300 has **3,757**
-non-black pixels and its frames 600 and 900 have **838** — the same counts
-this port produces, exactly. The 2D pipeline agrees with a reference
-implementation pixel for pixel on both screens it can draw.
-
-The second is where it stops. MAME's attract mode begins around frame 1,200
-with a credits line at the bottom of the screen, and by frame 3,300 it is
-showing a ranking table — *drawn with the tilemap*, not the Real3D. So attract
-mode is partly reachable without a renderer at all.
-
-Comparing the two machines at the same point:
-
-| | |
-|---|---|
-| work RAM, in the ranges dumped | **904 of 969** non-zero words identical |
-| flags word, game mode, scissor, callback slots | identical |
-| the tilemap copy at `0x0002CC04` | MAME runs it repeatedly, this runs it **once** |
-| its gate at RAM `0x001C1B70` | set by the game's text-drawing calls, which MAME makes and this does not |
-| the credits line | MAME writes rows 43-44; this writes rows 0-1 |
-
-So the two are in very nearly the same state, and the gap is that the attract
-sequence does not drive the text API.
-
-Following that upward: the text calls come from the game's state handlers, in
-a table at RAM `0x0011E6A4` indexed by `[0x001A3BB4] & 7`. That state is `0`
-in both machines, so both should be running the handler at `0x00001EB8` — and
-the dispatcher that would call it is the game's own main loop:
-
-```
-00001A14  bl 0x00001EF4     ; dispatch one state
-00001A18  b  0x00001A0C     ; forever
-```
-
-**That loop used to go round once here, and now it turns.** Its last call is `0x00118340`, which waits
-at `0x0011837C` for RAM `0x001C10D0` to change, and only the decrementer
-handler writes that word. The handler does run — 43 times in a 3,000-field
-run — and the word does change, but the wait is 568 million iterations of that
-one branch, by far the hottest in the program.
-
-It was not the decrementer's rate — sweeping that over four orders of
-magnitude left the iteration count identical to the digit. It was the **time
-base**.
-
-`mftb` advanced one tick per *read*, which is not a clock: its value depended
-on how often the guest looked at it rather than on how much time had passed.
-This game times an interval with it and divides to get its decrementer period,
-and computed **−26** where the hardware gives **26,926**. So the decrementer
-never fired again, the wait never ended, and the state handler ran once
-instead of once a field. The other end of the same measurement was the Real3D
-frame flag, which flipped per read rather than per frame — a shortcut taken
-deliberately, marked "upgrade path: flip it when the Real3D actually retires a
-frame", and now come due.
-
-With both fixed the machine comes alive:
-
-| | before | after |
-|---|---|---|
-| timing routine `0x00118340` | 1 | **2,059** |
-| tilemap copy `0x0002CC04` | 1 | **2,059** |
-| state handler `0x0001D68C` | 1 | **2,060** |
-
-The game now runs its own state machine once a field, in state 0, the same
-state MAME is in. What it still does not do is drive its text calls, so the
-credits line MAME draws is not drawn here yet.
-
-Meanwhile the frame task keeps running, because it arrives by interrupt rather
-than through this loop — which is why fields advance and the screen updates at
-all while the main loop is stuck. That also defeats the field-advance loop
-guard, so the backward-branch histogram is what found this. That is a narrower thing to chase than
-anything before it, and the method for chasing it now exists: MAME's memory
-taps name the code that writes a given address, and its RAM can be diffed
-against this port's word for word.
-
-### Earlier suspicion: the banked window
-
-The banked CROM window is 8 MB of a 32 MB image, so at most two bits of the
-register at `0xF0100008` can be the bank. `model3recomp` shifted the whole
-byte, and this game writes `0xF7` for most of its run — which lands at offset
-`0xF700000`, far outside the image. Every read through the window then returns
-zero: **299,984 of them in a 2,500-field run, about 1.2 MB of the game's own
-data.** `tools/rom_loader.py` warns of precisely this in a comment, and the
-symptom is what it predicts.
-
-That is very likely why nothing is drawn: the object and model tables the
-attract sequence would walk are read as zeros, so there is nothing to submit.
-
-One fix that this needed is in and correct: the register read back a value
-derived from the bank *offset*, which agrees with what was written only while
-the mapping is a plain shift — so every attempt to correct the mapping wedged
-the boot in the spin that waits for the readback, and looked like a different
-bug. Register and offset are separate now.
-
-The mapping itself is still unknown and is deliberately left alone rather than
-guessed at. `M3_TRACE_BANK` reports the access pattern — this game reads
-window offsets `0x000000`, `0x010000`, `0x120000`, `0x150000` and `0x400000`
-under registers `F1`, `F2`, `F3` and `F5` — and `M3_CROM_BANK` selects between
-candidate readings. Every candidate tried so far leaves the game worse off
-than zeros do, which says it is finding wrong data rather than none.
-
-**There is no 3D scene to draw, which is why the Real3D renderer is not the
-next thing to write.** Dump the scene memory and the picture is unambiguous:
-
-| | |
-|---|---|
-| Culling RAM, high | a viewport node and an LOD table — real, and frozen |
-| Culling RAM, low | never written |
-| Polygon RAM | never written |
-| The node area | 98.7% one repeated constant, `0x00800800` |
-
-So the guest has set the Real3D up — the viewport node at offset 0 holds
-believable frustum plane normals as little-endian floats, `0.2588` and
-`0.9659` among them — and then submits no models at all. A rasteriser written
-today would walk an empty node list and draw nothing. The blocker is the
-frozen counter above, not the renderer.
-
-`M3_LOOP_GUARD` is how the last stall was found. A recompiled game has no
-program counter to inspect, so a build with it defined reports the guest
-address a wedged game is spinning at; that is what named `0x0011837C`, a wait
-on a RAM word that only an interrupt handler writes.
+off guest work.
 
 ## What you need
 
@@ -439,9 +135,20 @@ it:
 cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=<vcpkg>/scripts/buildsystems/vcpkg.cmake
 ```
 
-Cabinet buttons are on the keys an arcade front end would use: **5** and
-**6** insert coins, **1** and **2** are the start buttons, **F2** is test and
-**F3** service. Escape quits.
+| Input | Does |
+|---|---|
+| mouse | aim |
+| left click, or Space | fire |
+| right click, or Left Shift | reload — points off screen and pulls the trigger |
+| **5** / **6** | coin 1 / coin 2 |
+| **1** / **2** | start 1 / start 2 |
+| **F2** / **F3** | test / service |
+| Escape | quit |
+
+The window runs at the board's 57.524 Hz. `M3_NOTHROTTLE=1` lets it run flat
+out, for scripted captures; `M3_COIN_AT` and `M3_START_AT` press coin and
+start at a given field, and `M3_GUN_X` / `M3_GUN_Y` pin the gun to raw board
+coordinates.
 
 Pass a field count to capture a screenshot and exit, which is what the
 conformance runs do:
