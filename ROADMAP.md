@@ -18,9 +18,8 @@ a 68EC000 and two SCSPs. The Sound menu is waiting for it.
 
 ## Then: netplay beyond the LAN
 
-The LAN scenario on recomp-netlab passes. Next is a pair across Tailscale
-and one through a forwarded port, and building on the farm (its clang-cl
-builders need SDL2).
+Two machines on a LAN stay identical. Next is a pair across Tailscale and
+one through a forwarded port.
 
 ## More cheats
 

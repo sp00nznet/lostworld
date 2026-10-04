@@ -6,7 +6,7 @@ this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
-- **English.** A Region option (Game menu, USA by default) sets the country
+- **English.** A Region setting (Debug menu, USA by default; changing it restarts the game) sets the country
   byte the game picks its text by -- RAM `0x1226`, the EEPROM settings'
   copy. The Japanese board carries the American attract screens, subtitles
   and prompts; no other dump is needed.
@@ -16,9 +16,8 @@ this project adheres to [Semantic Versioning](https://semver.org/).
   T-Rex and reaches stage two.
 - **Endless ammo** for either player (rounds at `0x1A3680 + 4p`, capacity
   `0x3C` on) and **add credits** (`0x12D4`, to 99) under Debug.
-- **A two-machine netplay test on recomp-netlab**: `--env FILE` and
-  `--roms DIR` for its run line, `tools/netlab/*.env` for the two players'
-  scripts. It passes: the host here and a lab VM stay identical.
+- `--env FILE` (harness variables from a file) and `--roms DIR`. Netplay
+  tested across two machines on a LAN: they stay frame-identical.
 - **Playable through stage one.** Attract mode is complete and correct --
   logo, the "something has survived" sequence, the title, rankings and the
   demo -- and a credit plays through to the T-Rex.

@@ -39,7 +39,7 @@ plays through stage one to the T-Rex, aimed and fired with the mouse.**
 | **In English** — the US attract and text from the Japanese board, by region | **yes** |
 | HUD: ammunition counter, RELOAD prompt, pickups, the T-Rex's target circles | yes |
 | Cheats: infinite health, endless ammo, either player; add credits | yes |
-| Two players across real machines, tested on recomp-netlab | yes |
+| Two players across two real machines on a LAN, frame-identical | yes |
 | Sound | no — the board has no 68000 or SCSPs yet |
 
 ### Known issues
@@ -161,10 +161,9 @@ The menu bar has the rest:
 |---|---|
 | File | save and load state, slots 1–9, reset, quit |
 | Video | window size, fullscreen, sharp or bilinear, scanlines, 4:3 or square pixels |
-| Game | **Region**: USA (the default), Export, Australia or Japan |
 | Sound | nothing yet |
 | Controls | mouse, gamepad as player 1 or 2, cursor hidden / crosshair / pointer, a white border for a **Sinden** light gun (run its software in mouse mode, off-screen reload on the right button) |
-| Debug | infinite health and endless ammo for either player; add credits |
+| Debug | infinite health and endless ammo for either player; add credits; **Region** -- USA (the default), Export, Australia or Japan, which restarts the game |
 | Multiplayer | host, join, disconnect, input delay |
 
 Settings live in `lostworld.ini`, high scores and the operator settings in
@@ -176,7 +175,8 @@ The only dump of this game is the Japanese board, `lostwsga`, and no
 American set has ever surfaced. It doesn't need one: the program carries
 every region -- Japan, USA, export, Australia -- and picks its text from a
 country byte in its EEPROM settings. The game resets that byte from the
-board's region at boot, so the Region option sets it again from then on.
+board's region at boot, so the Region setting (Debug menu) sets it again
+from then on; changing it restarts the game, as an operator would.
 With USA, attract mode gains the American screens (the parental advisory
 card, "Winners Don't Use Drugs"), and the subtitles, the how-to-play panel
 and the RELOAD prompt are in English.
@@ -207,24 +207,9 @@ pin the gun to raw board coordinates (X 150..651, Y 80..465);
 `M3_NETPLAY=host:PORT` or `join:ADDR:PORT` starts a session;
 `M3_STATE_SAVE_AT=<field>` and `M3_STATE_LOAD=<slot>` save and load;
 `M3_SHOT_EVERY=N,DIR` and `M3_RAM_EVERY=N,DIR` write frames and RAM;
-`M3_CHEATS` and `M3_OPTIONS` set the Debug and Game menus. The same
+`M3_CHEATS` and `M3_OPTIONS` set the Debug menu's cheats and region. The same
 variables can come from a file, `--env FILE`, and the ROM images from
 another folder, `--roms DIR`.
-
-### On recomp-netlab
-
-[recomp-netlab](https://github.com/sp00nznet/recomp-netlab) has a recipe
-(`projects/lostworld-recomp.env`) and a two-machine scenario:
-
-```
-scenarios/lostworld/lan.sh testbox
-```
-
-This PC hosts as player 1, the lab's test VM joins as player 2 over the LAN,
-both play `tools/netlab/{host,joiner}.env` (coin, start, trigger pulls), and
-each logs a hash of guest RAM every ten seconds. It passes when the two logs
-agree line for line -- the two machines stayed identical -- and fetches a
-picture from each.
 
 Pass a field count to capture a screenshot and exit, which is what the
 conformance runs do:

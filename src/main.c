@@ -40,7 +40,7 @@ static uint8_t *slurp_rom(const char *name, size_t *len, int required)
 
 /* --env FILE: KEY=VALUE lines put into the environment, for the harness
  * variables (M3_COIN_AT, M3_NETPLAY, ...) where a command line is all a
- * launcher can pass -- netlab's run line, for one. */
+ * launcher can pass, such as a test harness's run line. */
 static void load_env(const char *path)
 {
     char line[512];
