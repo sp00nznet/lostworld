@@ -6,6 +6,36 @@ this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **English.** A Region option (Game menu, USA by default) sets the country
+  byte the game picks its text by -- RAM `0x1226`, the EEPROM settings'
+  copy. The Japanese board carries the American attract screens, subtitles
+  and prompts; no other dump is needed.
+- **The HUD**: the ammunition counter, the RELOAD prompt, pickups and the
+  T-Rex's target circles, which were being painted over (model3recomp's
+  viewport priority fix). A scripted run with infinite health beats the
+  T-Rex and reaches stage two.
+- **Endless ammo** for either player (rounds at `0x1A3680 + 4p`, capacity
+  `0x3C` on) and **add credits** (`0x12D4`, to 99) under Debug.
+- **A two-machine netplay test on recomp-netlab**: `--env FILE` and
+  `--roms DIR` for its run line, `tools/netlab/*.env` for the two players'
+  scripts. It passes: the host here and a lab VM stay identical.
+- **Playable through stage one.** Attract mode is complete and correct --
+  logo, the "something has survived" sequence, the title, rankings and the
+  demo -- and a credit plays through to the T-Rex.
+- **A menu bar** (from model3recomp): video, controls, cursor, gamepad,
+  Sinden border, save states, cheats and multiplayer. The mouse pointer is
+  hidden over the game by default.
+- **Two players over the network**: `--host PORT` / `--join ADDR:PORT`, or
+  the Multiplayer menu. Lockstep, frame-identical on both machines, checked
+  by a RAM hash.
+- **Save states** at the branch back to the top of the game's state loop
+  (`0x2100`); exact across runs.
+- **Infinite health** for either player under Debug. Health is a word per
+  player at `0x1A3720` and `0x1A377C`, in medkits.
+- **High scores and settings persist** in `lostworld.nv`.
+- `M3_RAM_EVERY=N,DIR` writes the low 2 MB of RAM every N fields, for
+  finding the game's variables by search.
+- `docs/hero.gif`, from a played run.
 - First bring-up of *The Lost World: Jurassic Park* on
   [model3recomp](https://github.com/sp00nznet/model3recomp).
 - `tools/build_roms.py` — assembles the program CROM, banked CROM and VROM
@@ -42,18 +72,5 @@ this project adheres to [Semantic Versioning](https://semver.org/).
   dispatch was in progress.
 
 ### Known issues
-- The game submits no 3D geometry. Culling RAM holds a viewport node and an
-  LOD table; the node area is 98.7% one repeated constant and polygon RAM is
-  never written. Its own state machine is stalled: the frame task leaves early
-  every field. Until that changes there is nothing for a Real3D renderer to
-  draw. The decrementer, fixed in `model3recomp`, was one cause and is not
-  the last one: the counter it drives now advances and the game still does
-  not submit a scene.
-
-### Status
-- Boots, completes I/O init, takes VBlank interrupts, runs SCSI DMA, writes
-  tilemap VRAM, renders it, clears the Sega region warning screen, reaches the
-  main entry at RAM `0x30`, and installs and runs the frame task `0x1578` every
-  field -- 497 times through field 874 in the interpreter, 496 natively.
-  Attract mode is still not drawn: it is mostly 3D and the Real3D renderer is
-  not written.
+- A translucent mist is too strong in places.
+- No sound.

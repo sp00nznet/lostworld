@@ -29,17 +29,21 @@ plays through stage one to the T-Rex, aimed and fired with the mouse.**
 | Real3D: textured, lit, translucent, filtered | yes |
 | Textures from the FIFO and from VROM, all twelve formats | yes |
 | Coin, start, light gun aim, trigger, reload | yes |
-| **Stage one, played through to the boss** | **yes** |
+| **Stage one, played through and the T-Rex beaten**; stage two reached | **yes** |
 | Held to the board's 57.524 Hz | yes |
+| Menu bar: video, controls, cursor, cheats, multiplayer | yes |
+| Gamepad and Sinden light gun | yes |
+| Save states, exact across runs | yes |
+| **Two players over the network** — LAN, Tailscale, forwarded port | **yes** |
+| High scores and settings kept between runs | yes |
+| **In English** — the US attract and text from the Japanese board, by region | **yes** |
+| HUD: ammunition counter, RELOAD prompt, pickups, the T-Rex's target circles | yes |
+| Cheats: infinite health, endless ammo, either player; add credits | yes |
+| Two players across real machines, tested on recomp-netlab | yes |
 | Sound | no — the board has no 68000 or SCSPs yet |
-| High scores and settings kept between runs | no |
 
 ### Known issues
 
-- **The T-Rex's weak points are not drawn.** In the boss fight the circles
-  around the teeth and eyes that you are meant to shoot at do not appear. The
-  fight itself works -- hits register and the health bar drops.
-- **The ammunition counter comes and goes** rather than staying on screen.
 - **Some scenes are washed out.** A translucent mist layer is drawn too strong
   in places, the start of the T-Rex encounter among them.
 - Mipmaps are not used, so distant surfaces shimmer, and there are small
@@ -63,6 +67,8 @@ guessing at the hardware:
 | Texture type byte | ignored | mip-only loads stop overwriting the textures they belong to |
 | Texel formats | one of twelve | greyscale and alpha formats, tinted by polygon colour |
 | Light gun | fixed at the centre | the mouse, on Supermodel's 150..651 x 80..465 calibration |
+| Viewport priority | drawn in list order | the HUD viewport (priority 3) on top: ammo counter, RELOAD, pickups |
+| Serial EEPROM | a toggle that only passed the boot | a real 93C46, where the game keeps its settings and country |
 
 The full bring-up story -- the boot, the stalls, the ROM layout, and the
 dead ends -- is in [docs/technical/bring-up.md](docs/technical/bring-up.md).
@@ -137,18 +143,88 @@ cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=<vcpkg>/scripts/buildsystems/vcpkg.cm
 
 | Input | Does |
 |---|---|
-| mouse | aim |
+| mouse | aim (the pointer is hidden, as on the cabinet; Controls > Cursor for a crosshair) |
 | left click, or Space | fire |
 | right click, or Left Shift | reload — points off screen and pulls the trigger |
 | **5** / **6** | coin 1 / coin 2 |
 | **1** / **2** | start 1 / start 2 |
+| gamepad | left stick aims, A or RT fires, B or LT reloads, Start, Back for a coin |
+| **F5** / **F7** / **F6** | save state / load state / next slot |
+| **F11**, Alt+Enter | fullscreen |
+| Tab (held) | run flat out |
 | **F2** / **F3** | test / service |
-| Escape | quit |
+| Escape | leave fullscreen, or quit |
 
-The window runs at the board's 57.524 Hz. `M3_NOTHROTTLE=1` lets it run flat
-out, for scripted captures; `M3_COIN_AT` and `M3_START_AT` press coin and
-start at a given field, and `M3_GUN_X` / `M3_GUN_Y` pin the gun to raw board
-coordinates.
+The menu bar has the rest:
+
+| Menu | |
+|---|---|
+| File | save and load state, slots 1–9, reset, quit |
+| Video | window size, fullscreen, sharp or bilinear, scanlines, 4:3 or square pixels |
+| Game | **Region**: USA (the default), Export, Australia or Japan |
+| Sound | nothing yet |
+| Controls | mouse, gamepad as player 1 or 2, cursor hidden / crosshair / pointer, a white border for a **Sinden** light gun (run its software in mouse mode, off-screen reload on the right button) |
+| Debug | infinite health and endless ammo for either player; add credits |
+| Multiplayer | host, join, disconnect, input delay |
+
+Settings live in `lostworld.ini`, high scores and the operator settings in
+`lostworld.nv`, save states in `lostworld.<slot>.m3s`.
+
+### In English
+
+The only dump of this game is the Japanese board, `lostwsga`, and no
+American set has ever surfaced. It doesn't need one: the program carries
+every region -- Japan, USA, export, Australia -- and picks its text from a
+country byte in its EEPROM settings. The game resets that byte from the
+board's region at boot, so the Region option sets it again from then on.
+With USA, attract mode gains the American screens (the parental advisory
+card, "Winners Don't Use Drugs"), and the subtitles, the how-to-play panel
+and the RELOAD prompt are in English.
+
+### Two players over the network
+
+One machine hosts and plays player 1; the other joins as player 2. Use the
+Multiplayer menu, or the command line:
+
+```
+./build/lostworld --host 7777
+./build/lostworld --join 192.168.1.20:7777        # or a Tailscale name or address
+```
+
+The host's port has to be reachable: on a LAN it is, over Tailscale it is,
+and across the internet it needs forwarding (TCP). The game restarts for both
+when they connect -- a session starts at power-on -- and runs in lockstep, so
+the two machines stay frame-identical; the title bar says so if they ever
+stop being. Input delay (Multiplayer > Input delay) trades latency for
+smoothness: 1–2 fields on a LAN, more over distance.
+
+### Scripting it
+
+For captures and the build farm, everything is reachable without a person:
+`M3_NOTHROTTLE=1` runs flat out; `M3_COIN_AT` / `M3_START_AT` press coin and
+start at a field; `M3_FIRE_EVERY=N` pulls the trigger; `M3_GUN_X` / `M3_GUN_Y`
+pin the gun to raw board coordinates (X 150..651, Y 80..465);
+`M3_NETPLAY=host:PORT` or `join:ADDR:PORT` starts a session;
+`M3_STATE_SAVE_AT=<field>` and `M3_STATE_LOAD=<slot>` save and load;
+`M3_SHOT_EVERY=N,DIR` and `M3_RAM_EVERY=N,DIR` write frames and RAM;
+`M3_CHEATS` and `M3_OPTIONS` set the Debug and Game menus. The same
+variables can come from a file, `--env FILE`, and the ROM images from
+another folder, `--roms DIR`.
+
+### On recomp-netlab
+
+[recomp-netlab](https://github.com/sp00nznet/recomp-netlab) has a recipe
+(`projects/lostworld-recomp.env`) and a two-machine scenario:
+
+```
+scenarios/lostworld/lan.sh testbox
+```
+
+This PC hosts as player 1, the lab's test VM joins as player 2 over the LAN,
+both play `tools/netlab/{host,joiner}.env` (coin, start, trigger pulls), and
+each logs a hash of guest RAM every ten seconds. It passes when the two logs
+agree line for line -- the two machines stayed identical -- and fetches a
+picture from each.
 
 Pass a field count to capture a screenshot and exit, which is what the
 conformance runs do:

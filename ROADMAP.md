@@ -1,34 +1,32 @@
 # Roadmap
 
-The milestone is one specific frame: **The Lost World's attract mode**.
+The first milestone was one frame of attract mode. The game now plays
+through stage one to the T-Rex, alone or with a second player over the
+network, and saves and loads its state. What is left, in the order a player
+would notice it:
 
-## Next: get the game to submit a scene
+## Next: what is still wrong on screen
 
-Not the Real3D, which is the surprise. The game reaches its main entry, runs
-its frame task every field, and draws its own text — and then submits no
-geometry whatsoever. Culling RAM holds a viewport and an LOD table and nothing
-else; polygon RAM is never written at all. Its own state machine is stalled on
-a counter at RAM `0x001A38C0` that never advances.
+- **Washed-out mist.** A translucent sheet is drawn too strong in places --
+  probably fog or a blend mode the renderer does not do yet.
+- Mipmaps, so distant surfaces stop shimmering.
 
-A rasteriser written before that is fixed has nothing to walk. Find what is
-meant to move that counter first.
+## Then: sound
 
-## Then: the Real3D
+On the board, in [model3recomp](https://github.com/sp00nznet/model3recomp):
+a 68EC000 and two SCSPs. The Sound menu is waiting for it.
 
-Once there is a scene, this is board-level work and belongs in
-[model3recomp](https://github.com/sp00nznet/model3recomp), not here.
+## Then: netplay beyond the LAN
 
-- Walk the culling-RAM node tree, accumulating transforms.
-- Parse the display list out of polygon RAM.
-- Decode models and textures from the VROM.
-- Transform, light, clip and rasterise.
+The LAN scenario on recomp-netlab passes. Next is a pair across Tailscale
+and one through a forwarded port, and building on the farm (its clang-cl
+builders need SDL2).
 
-## Then, in this repository
+## More cheats
 
-- Wire the inputs so coins and the trigger reach the game.
-- A conformance run: fixed field counts, captured framebuffer checksums,
-  tracked over time so a regression is visible.
-- Sound, once the board has a 68000 and SCSPs.
+One-hit kills need enemy health found the same way the others were -- a save
+state at the right moment and a search over `M3_RAM_EVERY` dumps. Free play
+(credits that never run out) is a pin on `0x12D4` once in attract.
 
 ## Deferred
 

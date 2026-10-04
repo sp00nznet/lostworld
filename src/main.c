@@ -11,6 +11,7 @@
  */
 #include "model3recomp/model3recomp.h"
 #include "model3recomp/bus.h"
+#include "model3recomp/input.h"
 
 #include "lwrom_funcs.h"
 #include "lwram_funcs.h"
@@ -19,10 +20,40 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef _WIN32
+#define strdup _strdup
+#define putenv _putenv
+#endif
+
 /* Built by tools/build_roms.py from the romset. */
-#define ROM_PROG "roms/lw_prog.bin"
-#define ROM_BANK "roms/lw_bank.bin"
-#define ROM_VROM "roms/lw_vrom.bin"
+/* Built by tools/build_roms.py from the romset, in roms/ unless --roms
+ * says otherwise. */
+static const char *g_roms_dir = "roms";
+static uint8_t *slurp(const char *path, size_t *len, int required);
+
+static uint8_t *slurp_rom(const char *name, size_t *len, int required)
+{
+    char path[512];
+    snprintf(path, sizeof path, "%s/%s", g_roms_dir, name);
+    return slurp(path, len, required);
+}
+
+/* --env FILE: KEY=VALUE lines put into the environment, for the harness
+ * variables (M3_COIN_AT, M3_NETPLAY, ...) where a command line is all a
+ * launcher can pass -- netlab's run line, for one. */
+static void load_env(const char *path)
+{
+    char line[512];
+    FILE *f = fopen(path, "r");
+    if (!f) { fprintf(stderr, "%s: cannot read\n", path); return; }
+    while (fgets(line, sizeof line, f)) {
+        char *nl = strpbrk(line, "\r\n");
+        if (nl) *nl = 0;
+        if (line[0] && line[0] != '#' && strchr(line, '='))
+            putenv(strdup(line));
+    }
+    fclose(f);
+}
 
 static uint8_t *slurp(const char *path, size_t *len, int required)
 {
@@ -77,9 +108,115 @@ static void shots(void)
     model3recomp_screenshot(path);
 }
 
+/* M3_RAM_EVERY=N[,DIR]: write the low 2 MB of work RAM -- where the game
+ * keeps its variables -- every N fields, for finding them by search. */
+static void ram_dumps(void)
+{
+    static long every = -1;
+    static char dir[256];
+    uint64_t f = model3recomp_frame_count();
+    char path[512];
+    FILE *fp;
+
+    if (every < 0) {
+        const char *e = getenv("M3_RAM_EVERY");
+        const char *c;
+        every = e ? strtol(e, NULL, 0) : 0;
+        c = e ? strchr(e, ',') : NULL;
+        snprintf(dir, sizeof dir, "%s", c ? c + 1 : ".");
+    }
+    if (every <= 0 || (f % (uint64_t)every) != 0)
+        return;
+    snprintf(path, sizeof path, "%s/ram_%06llu.bin", dir, (unsigned long long)f);
+    if ((fp = fopen(path, "wb")) != NULL) {
+        fwrite(bus_ram(), 1, 0x200000u, fp);
+        fclose(fp);
+    }
+}
+
+/* The game's own variables, found by searching RAM dumps (M3_RAM_EVERY)
+ * for values that moved exactly when the HUD did, and then confirmed by
+ * pinning each candidate:
+ *
+ *   health   a word per player, 0x5C apart, counting medkits -- three to
+ *            start, zero on the continue screen. A HUD copy at 0x1C1260
+ *            tracks it too, but pinning that one does not keep you alive.
+ *   ammo     a word per player, 4 apart, rounds left in the gun; 0x3C on
+ *            is the same player's capacity, so it serves specials too.
+ *   credits  one byte for the cabinet. Touching it during the boot wedges
+ *            the machine, so it is only ever changed once in the game.
+ *   country  a byte in the RAM copy of the EEPROM settings: 0 Japan,
+ *            1 USA, 2 export, 3 Australia. The game reads it whenever it
+ *            picks text -- subtitles, attract screens, the join prompt --
+ *            and rewrites the EEPROM's copy from its region at boot (field
+ *            86), so it is set from field 90 on rather than in the EEPROM. */
+#define HEALTH_P1   0x001A3720u
+#define HEALTH_P2   0x001A377Cu
+#define AMMO_P1     0x001A3680u
+#define AMMO_P2     0x001A3684u
+#define AMMO_CAP    0x3Cu       /* capacity, after the rounds */
+#define CREDITS     0x000012D4u
+#define COUNTRY     0x00001226u
+
+enum { CHEAT_HEALTH_P1, CHEAT_HEALTH_P2, CHEAT_AMMO_P1, CHEAT_AMMO_P2, CHEAT_CREDITS };
+enum { OPT_REGION };
+static const char *const k_regions[] = { "Japan (Japanese text)", "USA (English)",
+                                         "Export (English)", "Australia (English)" };
+
+static uint32_t peek32(uint32_t a)
+{
+    const uint8_t *r = bus_ram();
+    return ((uint32_t)r[a] << 24) | ((uint32_t)r[a + 1] << 16) |
+           ((uint32_t)r[a + 2] << 8) | r[a + 3];
+}
+
+static void poke32(uint32_t a, uint32_t v)
+{
+    uint8_t *r = bus_ram();
+    r[a] = (uint8_t)(v >> 24); r[a + 1] = (uint8_t)(v >> 16);
+    r[a + 2] = (uint8_t)(v >> 8); r[a + 3] = (uint8_t)v;
+}
+
+/* Topped up only while the player is in the game: zero is the continue
+ * screen, and writing over that would be a different cheat. */
+static void top_up_health(uint32_t addr)
+{
+    uint32_t v = peek32(addr);
+    if (v && v < 3u)
+        poke32(addr, 3u);
+}
+
+static void refill_ammo(uint32_t addr)
+{
+    uint32_t cap = peek32(addr + AMMO_CAP);
+    if (cap && cap <= 99u && peek32(addr) < cap)
+        poke32(addr, cap);
+}
+
+/* Cheats and options, from the Debug and Game menus. They poke the game's
+ * own RAM once a field, and they come from the netplay host's record, so
+ * both machines do the same thing on the same field. */
+static void cheats(void)
+{
+    uint32_t on = m3_input()->cheats;
+    uint8_t *r = bus_ram();
+
+    if (model3recomp_frame_count() >= 90u)
+        r[COUNTRY] = (uint8_t)m3_option(OPT_REGION);
+    if (on & (1u << CHEAT_HEALTH_P1)) top_up_health(HEALTH_P1);
+    if (on & (1u << CHEAT_HEALTH_P2)) top_up_health(HEALTH_P2);
+    if (on & (1u << CHEAT_AMMO_P1))   refill_ammo(AMMO_P1);
+    if (on & (1u << CHEAT_AMMO_P2))   refill_ammo(AMMO_P2);
+    /* The counter shows two digits, so "a hundred credits" is 99. */
+    if ((on & (1u << CHEAT_CREDITS)) && model3recomp_frame_count() > 1000u)
+        r[CREDITS] = 99;
+}
+
 static void on_field(void)
 {
     shots();
+    ram_dumps();
+    cheats();
     if (!g_stop_after || model3recomp_frame_count() < g_stop_after)
         return;
     model3recomp_screenshot("shot.ppm");
@@ -106,7 +243,36 @@ int main(int argc, char **argv)
     cfg.step  = M3_STEP_1_5;
     cfg.title = "The Lost World: Jurassic Park";
 
-    cfg.roms.crom = slurp(ROM_PROG, &n, 1);
+    /*   lostworld [FIELDS] [--host PORT | --join ADDR:PORT] [--delay N]
+     *             [--roms DIR] [--env FILE]
+     *
+     * FIELDS stops after that many and writes shot.ppm. The netplay flags
+     * are the same as M3_NETPLAY / M3_NET_DELAY. A relaunch from the menu
+     * carries the command line along but has already set those itself. */
+    {
+        int i, relaunched = getenv("M3_RELAUNCHED") != NULL;
+        for (i = 1; i < argc; i++) {
+            char spec[256];
+            if (!strcmp(argv[i], "--host") && i + 1 < argc) {
+                snprintf(spec, sizeof spec, "M3_NETPLAY=host:%s", argv[++i]);
+                if (!relaunched) putenv(strdup(spec));
+            } else if (!strcmp(argv[i], "--join") && i + 1 < argc) {
+                snprintf(spec, sizeof spec, "M3_NETPLAY=join:%s", argv[++i]);
+                if (!relaunched) putenv(strdup(spec));
+            } else if (!strcmp(argv[i], "--delay") && i + 1 < argc) {
+                snprintf(spec, sizeof spec, "M3_NET_DELAY=%s", argv[++i]);
+                if (!relaunched) putenv(strdup(spec));
+            } else if (!strcmp(argv[i], "--roms") && i + 1 < argc) {
+                g_roms_dir = argv[++i];
+            } else if (!strcmp(argv[i], "--env") && i + 1 < argc) {
+                load_env(argv[++i]);
+            } else {
+                g_stop_after = strtoull(argv[i], NULL, 0);
+            }
+        }
+    }
+
+    cfg.roms.crom = slurp_rom("lw_prog.bin", &n, 1);
     if (!cfg.roms.crom) {
         fprintf(stderr,
                 "No program ROM. Build the images from your own romset:\n"
@@ -117,20 +283,35 @@ int main(int argc, char **argv)
 
     /* The banked CROM carries the bulk of the game and the VROM its models
      * and textures. Without them the game boots and has nothing to show. */
-    cfg.roms.crom_bank = slurp(ROM_BANK, &n, 0);
+    cfg.roms.crom_bank = slurp_rom("lw_bank.bin", &n, 0);
     if (cfg.roms.crom_bank) cfg.roms.crom_bank_size = n;
-    cfg.roms.vrom = slurp(ROM_VROM, &n, 0);
+    cfg.roms.vrom = slurp_rom("lw_vrom.bin", &n, 0);
     if (cfg.roms.vrom) cfg.roms.vrom_size = n;
 
-    if (argc > 1)
-        g_stop_after = strtoull(argv[1], NULL, 0);
+    /* The board's own settings: where it keeps them, and the guest address
+     * save states are taken at: 0x2100, the branch back to the top of the
+     * loop in 0x1EF4 that runs the game's states. It follows the per-field
+     * wait (0x118340), the function never returns, so the guest passes it
+     * once a field with the same host call stack every time. (The outer loop
+     * at 0x1A0C looks like the main loop and is never reached again.) */
+    cfg.ini_path     = "lostworld.ini";
+    cfg.nvram_path   = "lostworld.nv";
+    cfg.state_prefix = "lostworld";
+    cfg.safepoint_pc = 0x00002100u;
 
     if (!model3recomp_init(&cfg)) {
         fprintf(stderr, "model3recomp_init failed\n");
         return 1;
     }
-    if (g_stop_after)
-        model3recomp_set_frame_hook(on_field);
+    model3recomp_set_frame_hook(on_field);
+    m3_cheat_add(CHEAT_HEALTH_P1, "Infinite health, player 1");
+    m3_cheat_add(CHEAT_HEALTH_P2, "Infinite health, player 2");
+    m3_cheat_add(CHEAT_AMMO_P1, "Endless ammo, player 1");
+    m3_cheat_add(CHEAT_AMMO_P2, "Endless ammo, player 2");
+    m3_cheat_add_action(CHEAT_CREDITS, "Add credits (to 99)");
+    /* English by default: the only dump is the Japanese board, and the
+     * game carries every region's text in it. */
+    m3_option_add(OPT_REGION, "&Region", k_regions, 4, 1);
 
     /* Two halves: the boot code that runs from ROM, and the game the boot
      * copies into RAM. Both are lifted, and both register here. */

@@ -19,6 +19,8 @@ roms/
 *.bin
 *.rom
 *.nv
+*.ini
+*.m3s
 epr-*
 mpr-*
 
