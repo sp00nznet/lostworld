@@ -11,11 +11,6 @@ would notice it:
   probably fog or a blend mode the renderer does not do yet.
 - Mipmaps, so distant surfaces stop shimmering.
 
-## Then: sound
-
-On the board, in [model3recomp](https://github.com/sp00nznet/model3recomp):
-a 68EC000 and two SCSPs. The Sound menu is waiting for it.
-
 ## Then: netplay beyond the LAN
 
 Two machines on a LAN stay identical. Next is a pair across Tailscale and

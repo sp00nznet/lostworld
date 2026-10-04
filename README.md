@@ -40,7 +40,7 @@ plays through stage one to the T-Rex, aimed and fired with the mouse.**
 | HUD: ammunition counter, RELOAD prompt, pickups, the T-Rex's target circles | yes |
 | Cheats: infinite health, endless ammo, either player; add credits | yes |
 | Two players across two real machines on a LAN, frame-identical | yes |
-| Sound | no — the board has no 68000 or SCSPs yet |
+| **Sound** — music and effects, matching MAME | **yes** |
 
 ### Known issues
 
@@ -113,7 +113,12 @@ reset vector   : 0xFFF00100
 verified       : 7/7 exception vectors
 banked CROM    : roms/lw_bank.bin  (0x4000000 bytes from 16 chips)
 VROM           : roms/lw_vrom.bin  (0x2000000 bytes from 16 chips)
+sound          : roms/lw_snd.bin  (0x80000 bytes from 1 chip)
+samples        : roms/lw_samples.bin  (0x800000 bytes from 2 chips)
 ```
+
+If you built the images before sound arrived, run it again: the last two
+are new.
 
 ### 2. Recompile the game
 
@@ -161,7 +166,7 @@ The menu bar has the rest:
 |---|---|
 | File | save and load state, slots 1–9, reset, quit |
 | Video | window size, fullscreen, sharp or bilinear, scanlines, 4:3 or square pixels |
-| Sound | nothing yet |
+| Sound | mute (F9), volume |
 | Controls | mouse, gamepad as player 1 or 2, cursor hidden / crosshair / pointer, a white border for a **Sinden** light gun (run its software in mouse mode, off-screen reload on the right button) |
 | Debug | infinite health and endless ammo for either player; add credits; **Region** -- USA (the default), Export, Australia or Japan, which restarts the game |
 | Multiplayer | host, join, disconnect, input delay |

@@ -6,6 +6,10 @@ this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **Sound**: music, voices and effects, from model3recomp's new sound board.
+  `tools/build_roms.py` now also writes `lw_snd.bin` (the 68000 program)
+  and `lw_samples.bin` (the wave ROM). Attract mode is silent, as on a
+  cabinet with ADVERTISE SOUND off (the default); MAME is the same.
 - **English.** A Region setting (Debug menu, USA by default; changing it restarts the game) sets the country
   byte the game picks its text by -- RAM `0x1226`, the EEPROM settings'
   copy. The Japanese board carries the American attract screens, subtitles
@@ -72,4 +76,3 @@ this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Known issues
 - A translucent mist is too strong in places.
-- No sound.

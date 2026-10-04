@@ -288,6 +288,13 @@ int main(int argc, char **argv)
     cfg.roms.vrom = slurp_rom("lw_vrom.bin", &n, 0);
     if (cfg.roms.vrom) cfg.roms.vrom_size = n;
 
+    /* The sound board: its 68000 program and the SCSPs' wave ROM. Without
+     * them the game runs silent. */
+    cfg.roms.sndrom = slurp_rom("lw_snd.bin", &n, 0);
+    if (cfg.roms.sndrom) cfg.roms.sndrom_size = n;
+    cfg.roms.samples = slurp_rom("lw_samples.bin", &n, 0);
+    if (cfg.roms.samples) cfg.roms.samples_size = n;
+
     /* The board's own settings: where it keeps them, and the guest address
      * save states are taken at: 0x2100, the branch back to the top of the
      * loop in 0x1EF4 that runs the game's states. It follows the per-field
