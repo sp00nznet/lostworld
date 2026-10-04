@@ -19,8 +19,7 @@ one through a forwarded port.
 ## More cheats
 
 One-hit kills need enemy health found the same way the others were -- a save
-state at the right moment and a search over `M3_RAM_EVERY` dumps. Free play
-(credits that never run out) is a pin on `0x12D4` once in attract.
+state at the right moment and a search over `M3_RAM_EVERY` dumps.
 
 ## Deferred
 

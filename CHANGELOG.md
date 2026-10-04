@@ -6,10 +6,19 @@ this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **The operator settings in the Debug menu**, as the cabinet manual lists
+  them: difficulty (the test menu's 16-step bar), starting life (1-9),
+  boss action (mild / normal), attract sound, and **free play** (coin
+  setting #27). Found from the routines that draw them in the test menu,
+  confirmed on its GAME ASSIGNMENTS page; they live in the settings block
+  at RAM 0x121C and are applied every field. Changing one restarts the
+  game; netplay uses the host's.
+- Infinite health tops up to the starting life, not to three.
 - **Sound**: music, voices and effects, from model3recomp's new sound board.
   `tools/build_roms.py` now also writes `lw_snd.bin` (the 68000 program)
-  and `lw_samples.bin` (the wave ROM). Attract mode is silent, as on a
-  cabinet with ADVERTISE SOUND off (the default); MAME is the same.
+  and `lw_samples.bin` (the wave ROM). Attract mode has sound from the
+  title sequence on; the boot and the region warning are silent, as they
+  are under MAME.
 - **English.** A Region setting (Debug menu, USA by default; changing it restarts the game) sets the country
   byte the game picks its text by -- RAM `0x1226`, the EEPROM settings'
   copy. The Japanese board carries the American attract screens, subtitles

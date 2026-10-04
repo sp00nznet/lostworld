@@ -145,23 +145,45 @@ static void ram_dumps(void)
  *            is the same player's capacity, so it serves specials too.
  *   credits  one byte for the cabinet. Touching it during the boot wedges
  *            the machine, so it is only ever changed once in the game.
- *   country  a byte in the RAM copy of the EEPROM settings: 0 Japan,
- *            1 USA, 2 export, 3 Australia. The game reads it whenever it
- *            picks text -- subtitles, attract screens, the join prompt --
- *            and rewrites the EEPROM's copy from its region at boot (field
- *            86), so it is set from field 90 on rather than in the EEPROM. */
+ *
+ * The operator settings (the test menu's GAME and COIN ASSIGNMENTS, and the
+ * cabinet manual) live in a block at 0x121C, the RAM copy of the EEPROM's.
+ * Each was found from the routine that draws it in the test menu, and the
+ * test menu's GAME ASSIGNMENTS page confirms them:
+ *
+ *   +9   coin/credit setting, 0..26; 26 (#27) is free play. The game turns
+ *        that into a flag at 0x12F4 when it loads its settings, so the
+ *        flag is set too.
+ *   +10  country: 0 Japan, 1 USA, 2 export, 3 Australia -- which text the
+ *        game uses: subtitles, attract screens, the join prompt.
+ *   +14  starting life, in medkits, minus one: 0..8.
+ *   +17  difficulty in the high nibble, 0..15 (the menu's easy-hard bar).
+ *   +18  advertise sound (attract mode's sound): 0 off, 1 on.
+ *   +20  boss action: 0 MILD (no life recovery at a boss), 1 NORMAL.
+ *
+ * The game rewrites the block from the EEPROM at boot (field 86), so these
+ * are applied from field 90 on, every field, rather than into the EEPROM,
+ * whose checksum would then have to be kept. */
 #define HEALTH_P1   0x001A3720u
 #define HEALTH_P2   0x001A377Cu
 #define AMMO_P1     0x001A3680u
 #define AMMO_P2     0x001A3684u
 #define AMMO_CAP    0x3Cu       /* capacity, after the rounds */
 #define CREDITS     0x000012D4u
-#define COUNTRY     0x00001226u
+#define SETTINGS    0x0000121Cu
+#define FREEPLAY_FLAG 0x000012F4u
 
 enum { CHEAT_HEALTH_P1, CHEAT_HEALTH_P2, CHEAT_AMMO_P1, CHEAT_AMMO_P2, CHEAT_CREDITS };
-enum { OPT_REGION };
+enum { OPT_REGION, OPT_DIFFICULTY, OPT_LIFE, OPT_BOSS, OPT_ADVERTISE, OPT_FREEPLAY };
 static const char *const k_regions[] = { "Japan (Japanese text)", "USA (English)",
                                          "Export (English)", "Australia (English)" };
+static const char *const k_difficulty[] = {
+    "1 (easiest)", "2", "3", "4", "5", "6", "7", "8 (default)",
+    "9", "10", "11", "12", "13", "14", "15", "16 (hardest)" };
+static const char *const k_life[] = { "1", "2", "3 (default)", "4", "5", "6", "7", "8", "9" };
+static const char *const k_boss[] = { "Mild (no life recovery)", "Normal (default)" };
+static const char *const k_onoff_on[] = { "Off", "On (default)" };
+static const char *const k_onoff_off[] = { "Off (default)", "On" };
 
 static uint32_t peek32(uint32_t a)
 {
@@ -177,13 +199,14 @@ static void poke32(uint32_t a, uint32_t v)
     r[a + 2] = (uint8_t)(v >> 8); r[a + 3] = (uint8_t)v;
 }
 
-/* Topped up only while the player is in the game: zero is the continue
- * screen, and writing over that would be a different cheat. */
+/* Topped up, to the starting life, only while the player is in the game:
+ * zero is the continue screen, and writing over that would be a different
+ * cheat. */
 static void top_up_health(uint32_t addr)
 {
-    uint32_t v = peek32(addr);
-    if (v && v < 3u)
-        poke32(addr, 3u);
+    uint32_t v = peek32(addr), full = (uint32_t)bus_ram()[SETTINGS + 14] + 1u;
+    if (v && v < full)
+        poke32(addr, full);
 }
 
 static void refill_ammo(uint32_t addr)
@@ -201,8 +224,18 @@ static void cheats(void)
     uint32_t on = m3_input()->cheats;
     uint8_t *r = bus_ram();
 
-    if (model3recomp_frame_count() >= 90u)
-        r[COUNTRY] = (uint8_t)m3_option(OPT_REGION);
+    if (model3recomp_frame_count() >= 90u) {
+        uint8_t *set = r + SETTINGS;
+        set[10] = (uint8_t)m3_option(OPT_REGION);
+        set[14] = (uint8_t)m3_option(OPT_LIFE);
+        set[17] = (uint8_t)((set[17] & 0x0F) | (m3_option(OPT_DIFFICULTY) << 4));
+        set[18] = (uint8_t)m3_option(OPT_ADVERTISE);
+        set[20] = (uint8_t)m3_option(OPT_BOSS);
+        if (m3_option(OPT_FREEPLAY)) {
+            set[9] = 26;
+            r[FREEPLAY_FLAG] = 1;
+        }
+    }
     if (on & (1u << CHEAT_HEALTH_P1)) top_up_health(HEALTH_P1);
     if (on & (1u << CHEAT_HEALTH_P2)) top_up_health(HEALTH_P2);
     if (on & (1u << CHEAT_AMMO_P1))   refill_ammo(AMMO_P1);
@@ -319,6 +352,12 @@ int main(int argc, char **argv)
     /* English by default: the only dump is the Japanese board, and the
      * game carries every region's text in it. */
     m3_option_add(OPT_REGION, "&Region", k_regions, 4, 1);
+    /* The operator settings, as the cabinet manual lists them. */
+    m3_option_add(OPT_DIFFICULTY, "&Difficulty", k_difficulty, 16, 7);
+    m3_option_add(OPT_LIFE, "Starting &life", k_life, 9, 2);
+    m3_option_add(OPT_BOSS, "&Boss action", k_boss, 2, 1);
+    m3_option_add(OPT_ADVERTISE, "&Attract sound", k_onoff_on, 2, 1);
+    m3_option_add(OPT_FREEPLAY, "&Free play", k_onoff_off, 2, 0);
 
     /* Two halves: the boot code that runs from ROM, and the game the boot
      * copies into RAM. Both are lifted, and both register here. */

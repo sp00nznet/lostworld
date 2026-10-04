@@ -168,7 +168,7 @@ The menu bar has the rest:
 | Video | window size, fullscreen, sharp or bilinear, scanlines, 4:3 or square pixels |
 | Sound | mute (F9), volume |
 | Controls | mouse, gamepad as player 1 or 2, cursor hidden / crosshair / pointer, a white border for a **Sinden** light gun (run its software in mouse mode, off-screen reload on the right button) |
-| Debug | infinite health and endless ammo for either player; add credits; **Region** -- USA (the default), Export, Australia or Japan, which restarts the game |
+| Debug | infinite health and endless ammo for either player; add credits; and the cabinet's operator settings, each of which restarts the game: **Region** (USA by default, Export, Australia, Japan), **Difficulty** (1-16), **Starting life** (1-9), **Boss action**, **Attract sound**, **Free play** |
 | Multiplayer | host, join, disconnect, input delay |
 
 Settings live in `lostworld.ini`, high scores and the operator settings in
