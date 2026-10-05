@@ -6,9 +6,9 @@ this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
-- **Fog and mipmaps**, from model3recomp's renderer: the dusty stages are
-  hazy and the T-Rex's night darkens with distance, and distant ground and
-  roofs no longer shimmer.
+- **Fog, mipmaps and specular highlights**, from model3recomp's renderer:
+  the dusty stages are hazy, the T-Rex's night darkens with distance,
+  distant ground and roofs no longer shimmer, and the jeeps shine.
 - **The operator settings in the Debug menu**, as the cabinet manual lists
   them: difficulty (the test menu's 16-step bar), starting life (1-9),
   boss action (mild / normal), attract sound, and **free play** (coin
