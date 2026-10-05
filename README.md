@@ -50,22 +50,21 @@ plays through stage one to the T-Rex, aimed and fired with the mouse.**
 
 ### What fixed it
 
-Most of what stood between attract mode and a playable game was in the board,
-and every fix below came from comparing against
-[Supermodel](https://github.com/trzy/Supermodel)'s source rather than from
-guessing at the hardware:
+Most of what stood between attract mode and a playable game was in the board.
+Each fix below is implemented from MAME's Model 3 driver and documentation
+(BSD-3-Clause) or from measuring the game itself:
 
 | | was | is |
 |---|---|---|
 | Tilemap register `0x20` | depth and priority nibbles swapped | the title logo and credits roll decode |
-| Tilemap scroll | not implemented | scroll, per-line scroll, A/A' stencil, colour offsets (fades, lightning) |
+| Tilemap scroll | not implemented | scroll, A/A' stencil, colour offsets (fades, lightning) |
 | Polygon translucency | drawn opaque | a 40% mist sheet stops hiding the title sequence |
 | Culling node siblings | given the node's own transform | a stray cyan shape leaves the demo |
 | Per-node texture offset | ignored | models get their own skins |
 | VROM texture address | 16-bit units | 32-bit words: the jungle, the village, the trees |
 | Texture type byte | ignored | mip-only loads stop overwriting the textures they belong to |
-| Texel formats | one of twelve | greyscale and alpha formats, tinted by polygon colour |
-| Light gun | fixed at the centre | the mouse, on Supermodel's 150..651 x 80..465 calibration |
+| Texel formats | one of eight | greyscale and alpha formats, tinted by polygon colour |
+| Light gun | fixed at the centre | the mouse, on a 147..652 x 79..464 calibration measured from the game's crosshair |
 | Viewport priority | drawn in list order | the HUD viewport (priority 3) on top: ammo counter, RELOAD, pickups |
 | Serial EEPROM | a toggle that only passed the boot | a real 93C46, where the game keeps its settings and country |
 

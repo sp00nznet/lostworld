@@ -5,6 +5,12 @@ this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- model3recomp no longer contains code derived from Supermodel (GPL); the
+  parts that were have been rewritten from MAME (BSD-3-Clause) and from
+  measurements of this game. Specular highlights are subtler, and save
+  states made before this will not load.
+
 ### Added
 - **Fog, mipmaps and specular highlights**, from model3recomp's renderer:
   the dusty stages are hazy, the T-Rex's night darkens with distance,

@@ -27,6 +27,5 @@ state at the right moment and a search over `M3_RAM_EVERY` dumps.
 
 ## Out of scope
 
-- Being an emulator. Use Supermodel; this project is built from the same
-  public research.
+- Being an emulator.
 - Distributing anything derived from the ROM.
