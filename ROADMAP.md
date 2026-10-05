@@ -9,7 +9,6 @@ would notice it:
 
 - **Washed-out mist.** A translucent sheet is drawn too strong in places --
   probably fog or a blend mode the renderer does not do yet.
-- Mipmaps, so distant surfaces stop shimmering.
 
 ## Then: netplay beyond the LAN
 

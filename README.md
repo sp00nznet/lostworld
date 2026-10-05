@@ -46,8 +46,7 @@ plays through stage one to the T-Rex, aimed and fired with the mouse.**
 
 - **Some scenes are washed out.** A translucent mist layer is drawn too strong
   in places, the start of the T-Rex encounter among them.
-- Mipmaps are not used, so distant surfaces shimmer, and there are small
-  graphical errors here and there -- stray polygons, the odd wrong texture.
+- There are small graphical errors here and there -- stray polygons, the odd wrong texture.
 
 ### What fixed it
 
