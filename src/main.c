@@ -147,9 +147,9 @@ static void ram_dumps(void)
  *            the machine, so it is only ever changed once in the game.
  *   stage    a word at 0x1C2B10, the stage a game is on minus one, with a
  *            byte copy at 0x1A623C; the word after it is 0 until the stage
- *            is under way. Holding both at N from the start press until
- *            then starts the game on stage N+1, whatever is picked on the
- *            game's own stage select screen -- checked for all five, each
+ *            is under way, and -1 while the game's stage select screen is
+ *            up. Holding both at N from the pick until then starts the
+ *            game on stage N+1, whatever is picked on that screen -- checked for all five, each
  *            stage's title card and opening. Writing them once is not
  *            enough: the game sets them again while it starts up.
  *
@@ -229,22 +229,28 @@ static void refill_ammo(uint32_t addr)
         poke32(addr, cap);
 }
 
-/* Debug > Start at stage: a start pressed while no stage is under way arms
- * it, and the stage is then held through the game's own INGEN STAGE SELECT
- * screen and the title card until the stage is under way -- the select
- * screen sets it too, and later. A player joining mid-game does not arm it,
- * so it never moves a game that is already going. */
+/* Debug > Start at stage. The stage word reads -1 while the game's own
+ * INGEN STAGE SELECT screen is up, and only then; when it leaves -1 a new
+ * game has picked its stage, and the chosen one is held from there until
+ * the stage is under way -- the game sets the word more than once while it
+ * starts up. Keyed on the select screen rather than on a start press, it
+ * catches a game however it was started and never touches one in
+ * progress. */
 static void start_stage(void)
 {
-    static uint64_t armed_at;
-    static int armed;
+    static uint32_t prev;
+    static int holding;
+    static uint64_t since;
     uint64_t f = model3recomp_frame_count();
     unsigned n = m3_option(OPT_STAGE);
-    if (!n || f < 1000u) { armed = 0; return; }
-    if (!armed && (m3_input()->buttons & (M3_BTN_START1 | M3_BTN_START2))
-        && peek32(IN_STAGE) == 0) { armed = 1; armed_at = f; }
-    if (!armed) return;
-    if (peek32(IN_STAGE) != 0 || f - armed_at > 3000u) { armed = 0; return; }
+    uint32_t now = peek32(STAGE);
+
+    /* Not during the boot: RAM starts out all ones, which looks like the
+     * select screen, and writing the stage then wedges the machine. */
+    if (n && f > 1000u && prev == 0xFFFFFFFFu && now != 0xFFFFFFFFu) { holding = 1; since = f; }
+    prev = now;
+    if (!holding) return;
+    if (!n || peek32(IN_STAGE) != 0 || f - since > 3000u) { holding = 0; return; }
     poke32(STAGE, n - 1u);
     bus_ram()[STAGE_COPY] = (uint8_t)(n - 1u);
 }

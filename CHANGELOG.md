@@ -14,8 +14,9 @@ this project adheres to [Semantic Versioning](https://semver.org/).
 ### Added
 - **Start at stage** (Debug menu): begin a game on any of the five stages,
   whichever is picked on the game's own INGEN STAGE SELECT screen. The stage
-  is a word at RAM 0x1C2B10, the stage number minus one, held from the
-  start press until the stage is under way.
+  is a word at RAM 0x1C2B10, the stage number minus one; it reads -1 while
+  the select screen is up, and the chosen stage is held from the pick until
+  the stage is under way.
 
 - **Fog, mipmaps and specular highlights**, from model3recomp's renderer:
   the dusty stages are hazy, the T-Rex's night darkens with distance,
@@ -83,6 +84,8 @@ this project adheres to [Semantic Versioning](https://semver.org/).
 - See-through texels (smoke, shadows, glows) blend instead of being drawn
   solid or not at all.
 - The crosshair is shown by default.
+- The Debug menu's cheats survive the restart an option change makes, and
+  the menu lists them from the start rather than after the first click.
 - The game draws its own text. The tilemap decode in `model3recomp` was wrong
   in three places at once and still produced a picture; it now renders the
   region warning screen and the boot report legibly, and they match the
