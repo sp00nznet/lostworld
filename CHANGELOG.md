@@ -12,6 +12,11 @@ this project adheres to [Semantic Versioning](https://semver.org/).
   states made before this will not load.
 
 ### Added
+- **Start at stage** (Debug menu): begin a game on any of the five stages,
+  whichever is picked on the game's own INGEN STAGE SELECT screen. The stage
+  is a word at RAM 0x1C2B10, the stage number minus one, held from the
+  start press until the stage is under way.
+
 - **Fog, mipmaps and specular highlights**, from model3recomp's renderer:
   the dusty stages are hazy, the T-Rex's night darkens with distance,
   distant ground and roofs no longer shimmer, and the jeeps shine.
@@ -69,6 +74,15 @@ this project adheres to [Semantic Versioning](https://semver.org/).
 - `docs/technical/bring-up.md` — what this title needed, and why.
 
 ### Fixed
+- **The game stopped at the zip line** ("Let's take a short cut", stage 4):
+  the camera zoomed in and nothing moved on. The cases of a switch at
+  0x00044C14 were never recompiled, because model3recomp's lifter only
+  scanned for switch tables once. It now repeats the scan until it finds
+  nothing new, which also picked up some 70 other missed cases. **Run
+  `tools/lift.py` again** to get them.
+- See-through texels (smoke, shadows, glows) blend instead of being drawn
+  solid or not at all.
+- The crosshair is shown by default.
 - The game draws its own text. The tilemap decode in `model3recomp` was wrong
   in three places at once and still produced a picture; it now renders the
   region warning screen and the boot report legibly, and they match the

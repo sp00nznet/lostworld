@@ -38,7 +38,7 @@ plays through stage one to the T-Rex, aimed and fired with the mouse.**
 | High scores and settings kept between runs | yes |
 | **In English** — the US attract and text from the Japanese board, by region | **yes** |
 | HUD: ammunition counter, RELOAD prompt, pickups, the T-Rex's target circles | yes |
-| Cheats: infinite health, endless ammo, either player; add credits | yes |
+| Cheats: infinite health, endless ammo, either player; add credits; start at any stage | yes |
 | Two players across two real machines on a LAN, frame-identical | yes |
 | **Sound** — music and effects, matching MAME | **yes** |
 
@@ -146,7 +146,7 @@ cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=<vcpkg>/scripts/buildsystems/vcpkg.cm
 
 | Input | Does |
 |---|---|
-| mouse | aim (the pointer is hidden, as on the cabinet; Controls > Cursor for a crosshair) |
+| mouse | aim, with a crosshair (Controls > Cursor to hide it, as on the cabinet) |
 | left click, or Space | fire |
 | right click, or Left Shift | reload — points off screen and pulls the trigger |
 | **5** / **6** | coin 1 / coin 2 |
@@ -166,7 +166,7 @@ The menu bar has the rest:
 | Video | window size, fullscreen, sharp or bilinear, scanlines, 4:3 or square pixels |
 | Sound | mute (F9), volume |
 | Controls | mouse, gamepad as player 1 or 2, cursor hidden / crosshair / pointer, a white border for a **Sinden** light gun (run its software in mouse mode, off-screen reload on the right button) |
-| Debug | infinite health and endless ammo for either player; add credits; and the cabinet's operator settings, each of which restarts the game: **Region** (USA by default, Export, Australia, Japan), **Difficulty** (1-16), **Starting life** (1-9), **Boss action**, **Attract sound**, **Free play** |
+| Debug | infinite health and endless ammo for either player; add credits; and the cabinet's operator settings, each of which restarts the game: **Region** (USA by default, Export, Australia, Japan), **Difficulty** (1-16), **Starting life** (1-9), **Boss action**, **Attract sound**, **Free play**, and **Start at stage** (1-5, whatever is picked on the game's own stage select) |
 | Multiplayer | host, join, disconnect, input delay |
 
 Settings live in `lostworld.ini`, high scores and the operator settings in

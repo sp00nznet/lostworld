@@ -145,6 +145,13 @@ static void ram_dumps(void)
  *            is the same player's capacity, so it serves specials too.
  *   credits  one byte for the cabinet. Touching it during the boot wedges
  *            the machine, so it is only ever changed once in the game.
+ *   stage    a word at 0x1C2B10, the stage a game is on minus one, with a
+ *            byte copy at 0x1A623C; the word after it is 0 until the stage
+ *            is under way. Holding both at N from the start press until
+ *            then starts the game on stage N+1, whatever is picked on the
+ *            game's own stage select screen -- checked for all five, each
+ *            stage's title card and opening. Writing them once is not
+ *            enough: the game sets them again while it starts up.
  *
  * The operator settings (the test menu's GAME and COIN ASSIGNMENTS, and the
  * cabinet manual) live in a block at 0x121C, the RAM copy of the EEPROM's.
@@ -172,9 +179,15 @@ static void ram_dumps(void)
 #define CREDITS     0x000012D4u
 #define SETTINGS    0x0000121Cu
 #define FREEPLAY_FLAG 0x000012F4u
+#define STAGE       0x001C2B10u
+#define STAGE_COPY  0x001A623Cu
+#define IN_STAGE    0x001C2B14u
 
 enum { CHEAT_HEALTH_P1, CHEAT_HEALTH_P2, CHEAT_AMMO_P1, CHEAT_AMMO_P2, CHEAT_CREDITS };
-enum { OPT_REGION, OPT_DIFFICULTY, OPT_LIFE, OPT_BOSS, OPT_ADVERTISE, OPT_FREEPLAY };
+enum { OPT_REGION, OPT_DIFFICULTY, OPT_LIFE, OPT_BOSS, OPT_ADVERTISE, OPT_FREEPLAY, OPT_STAGE };
+static const char *const k_stages[] = {
+    "Normal", "1  The Law of the Jungle", "2  The King of the Lakeside",
+    "3  Enter the Dragons", "4  Their Home....", "5  Something Has Survived" };
 static const char *const k_regions[] = { "Japan (Japanese text)", "USA (English)",
                                          "Export (English)", "Australia (English)" };
 static const char *const k_difficulty[] = {
@@ -216,6 +229,26 @@ static void refill_ammo(uint32_t addr)
         poke32(addr, cap);
 }
 
+/* Debug > Start at stage: a start pressed while no stage is under way arms
+ * it, and the stage is then held through the game's own INGEN STAGE SELECT
+ * screen and the title card until the stage is under way -- the select
+ * screen sets it too, and later. A player joining mid-game does not arm it,
+ * so it never moves a game that is already going. */
+static void start_stage(void)
+{
+    static uint64_t armed_at;
+    static int armed;
+    uint64_t f = model3recomp_frame_count();
+    unsigned n = m3_option(OPT_STAGE);
+    if (!n || f < 1000u) { armed = 0; return; }
+    if (!armed && (m3_input()->buttons & (M3_BTN_START1 | M3_BTN_START2))
+        && peek32(IN_STAGE) == 0) { armed = 1; armed_at = f; }
+    if (!armed) return;
+    if (peek32(IN_STAGE) != 0 || f - armed_at > 3000u) { armed = 0; return; }
+    poke32(STAGE, n - 1u);
+    bus_ram()[STAGE_COPY] = (uint8_t)(n - 1u);
+}
+
 /* Cheats and options, from the Debug and Game menus. They poke the game's
  * own RAM once a field, and they come from the netplay host's record, so
  * both machines do the same thing on the same field. */
@@ -240,6 +273,7 @@ static void cheats(void)
     if (on & (1u << CHEAT_HEALTH_P2)) top_up_health(HEALTH_P2);
     if (on & (1u << CHEAT_AMMO_P1))   refill_ammo(AMMO_P1);
     if (on & (1u << CHEAT_AMMO_P2))   refill_ammo(AMMO_P2);
+    start_stage();
     /* The counter shows two digits, so "a hundred credits" is 99. */
     if ((on & (1u << CHEAT_CREDITS)) && model3recomp_frame_count() > 1000u)
         r[CREDITS] = 99;
@@ -358,6 +392,7 @@ int main(int argc, char **argv)
     m3_option_add(OPT_BOSS, "&Boss action", k_boss, 2, 1);
     m3_option_add(OPT_ADVERTISE, "&Attract sound", k_onoff_on, 2, 1);
     m3_option_add(OPT_FREEPLAY, "&Free play", k_onoff_off, 2, 0);
+    m3_option_add(OPT_STAGE, "&Start at stage", k_stages, 6, 0);
 
     /* Two halves: the boot code that runs from ROM, and the game the boot
      * copies into RAM. Both are lifted, and both register here. */
