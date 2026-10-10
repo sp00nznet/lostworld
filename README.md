@@ -17,7 +17,7 @@ the same way on top of `model2recomp`.
 ## Status
 
 **Playable. The game boots, runs its whole attract cycle, takes a credit and
-plays through stage one to the T-Rex, aimed and fired with the mouse.**
+plays all five stages to the end, aimed and fired with the mouse.**
 
 | | |
 |---|---|
@@ -29,7 +29,7 @@ plays through stage one to the T-Rex, aimed and fired with the mouse.**
 | Real3D: textured, lit, translucent, filtered | yes |
 | Textures from the FIFO and from VROM, all twelve formats | yes |
 | Coin, start, light gun aim, trigger, reload | yes |
-| **Stage one, played through and the T-Rex beaten**; stage two reached | **yes** |
+| **Played to the end** -- every stage and boss, health bars included | **yes** |
 | Held to the board's 57.524 Hz | yes |
 | Menu bar: video, controls, cursor, cheats, multiplayer | yes |
 | Gamepad and Sinden light gun | yes |
@@ -37,7 +37,7 @@ plays through stage one to the T-Rex, aimed and fired with the mouse.**
 | **Two players over the network** — LAN, Tailscale, forwarded port | **yes** |
 | High scores and settings kept between runs | yes |
 | **In English** — the US attract and text from the Japanese board, by region | **yes** |
-| HUD: ammunition counter, RELOAD prompt, pickups, the T-Rex's target circles | yes |
+| HUD: ammunition counter, RELOAD prompt, pickups, boss target circles and health bars | yes |
 | Cheats: infinite health, endless ammo, either player; add credits; start at any stage | yes |
 | Two players across two real machines on a LAN, frame-identical | yes |
 | **Sound** — music and effects, matching MAME | **yes** |
