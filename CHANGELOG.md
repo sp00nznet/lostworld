@@ -84,6 +84,7 @@ this project adheres to [Semantic Versioning](https://semver.org/).
 - See-through texels (smoke, shadows, glows) blend instead of being drawn
   solid or not at all.
 - The crosshair is shown by default.
+- Boss health bars show, and the carnotaurus has the whole of its head.
 - The Debug menu's cheats survive the restart an option change makes, and
   the menu lists them from the start rather than after the first click.
 - The game draws its own text. The tilemap decode in `model3recomp` was wrong
