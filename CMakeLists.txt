@@ -31,3 +31,19 @@ if(MSVC)
 else()
     target_compile_options(lostworld PRIVATE -O2 -Wall -Wno-unused-variable)
 endif()
+
+# The browser build (emcmake cmake -S . -B build-web): lostworld.js + .wasm,
+# booted by a page that supplies the ROM images and draws the frames. The
+# guest runs on a pthread, so the page must be served cross-origin isolated.
+if(EMSCRIPTEN)
+    set_target_properties(lostworld PROPERTIES SUFFIX ".js")
+    target_compile_options(lostworld PRIVATE -pthread)
+    target_link_options(lostworld PRIVATE
+        -O0 -sASSERTIONS=0 -pthread -sPROXY_TO_PTHREAD=1 -sPTHREAD_POOL_SIZE=20
+        -sINITIAL_MEMORY=536870912 -sALLOW_MEMORY_GROWTH=1 -sMAXIMUM_MEMORY=2147483648
+        -sSTACK_SIZE=16777216 -sDEFAULT_PTHREAD_STACK_SIZE=2097152
+        -sMODULARIZE=1 -sEXPORT_NAME=createLostWorld -sENVIRONMENT=web,worker
+        -sINVOKE_RUN=0 -sEXIT_RUNTIME=0
+        -sEXPORTED_RUNTIME_METHODS=callMain,ENV,HEAPU8,HEAPU32,HEAP32,wasmMemory
+        -sEXPORTED_FUNCTIONS=_main,_malloc,_free)
+endif()

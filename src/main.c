@@ -31,9 +31,33 @@
 static const char *g_roms_dir = "roms";
 static uint8_t *slurp(const char *path, size_t *len, int required);
 
+#ifdef __EMSCRIPTEN__
+/* The browser build: the page builds the ROM images itself and hands them
+ * over in wasm memory (web_alloc, then web_rom) rather than through a file
+ * system. 0 lw_prog, 1 lw_bank, 2 lw_vrom, 3 lw_snd, 4 lw_samples. */
+#include <emscripten.h>
+static const char *const k_web_rom[5] = {
+    "lw_prog.bin", "lw_bank.bin", "lw_vrom.bin", "lw_snd.bin", "lw_samples.bin" };
+static uint8_t *g_web_rom[5];
+static size_t   g_web_rom_len[5];
+EMSCRIPTEN_KEEPALIVE void *web_alloc(size_t n) { return malloc(n); }
+EMSCRIPTEN_KEEPALIVE void web_rom(int i, uint8_t *p, size_t n)
+{
+    if (i >= 0 && i < 5) { g_web_rom[i] = p; g_web_rom_len[i] = n; }
+}
+#endif
+
 static uint8_t *slurp_rom(const char *name, size_t *len, int required)
 {
     char path[512];
+#ifdef __EMSCRIPTEN__
+    int i;
+    for (i = 0; i < 5; i++)
+        if (g_web_rom[i] && !strcmp(name, k_web_rom[i])) {
+            *len = g_web_rom_len[i];
+            return g_web_rom[i];
+        }
+#endif
     snprintf(path, sizeof path, "%s/%s", g_roms_dir, name);
     return slurp(path, len, required);
 }
